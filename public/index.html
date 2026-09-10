@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WhatsApp Multi Sessions</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="sidebar" id="sessions"></div>
+
+<div class="main">
+  <h2>لوحة التحكم</h2>
+
+  <button onclick="showCreate()">➕ إنشاء جلسة</button>
+
+  <div id="createBox" style="display:none;">
+    <input id="name" placeholder="Session Name (english)">
+    <input id="phone" placeholder="Phone (optional)">
+    <input id="api" placeholder="API URL">
+    <button onclick="createSession()">إنشاء</button>
+  </div>
+
+  <div id="notifications"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+
+function loadSessions(){
+  fetch('/sessions')
+  .then(r=>r.json())
+  .then(data=>{
+    let html = '';
+    data.forEach(s=>{
+      html += `<div onclick="openSession('${s.name}')">
+        ${s.name} - ${s.status}
+      </div>`;
+    });
+    document.getElementById('sessions').innerHTML = html;
+  });
+}
+
+function openSession(name){
+  location.href = '/' + name;
+}
+
+function showCreate(){
+  document.getElementById('createBox').style.display='block';
+}
+
+function createSession(){
+  fetch('/session/create',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name: document.getElementById('name').value,
+      phone: document.getElementById('phone').value,
+      apiUrl: document.getElementById('api').value
+    })
+  }).then(()=>location.reload());
+}
+
+socket.on('update', loadSessions);
+
+loadSessions();
+</script>
+
+</body>
+</html>
