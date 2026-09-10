@@ -80,9 +80,10 @@ class MessageQueueManager {
 
   async enqueue(session, phoneNumber, message, media, directSend) {
     await this.ready;
-    if (!this.config.enabled) return directSend();
+    const existing = this.queues.get(session.name);
+    if (!this.config.enabled && !existing) return directSend();
 
-    const state = this.stateFor(session.name);
+    const state = existing || this.stateFor(session.name);
     return new Promise((resolve, reject) => {
       state.jobs.push({ phoneNumber, message, media, directSend, resolve, reject });
       if (!state.running) this.run(session.name, state).catch(() => {});
