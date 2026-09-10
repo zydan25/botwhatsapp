@@ -5,6 +5,7 @@ data/sessions/*.json
 data/messages/*.json
 data/errors/*.json
 data/notifications/*.json
+data/clients/*.json
 data/uploads/
 logs/
 log/
