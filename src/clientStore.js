@@ -34,19 +34,25 @@ class ClientStore {
     return null;
   }
 
+  toPublic(record) {
+    if (!record) return null;
+    return {
+      username: record.username,
+      displayName: record.displayName,
+      sessionName: record.sessionName,
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      tokenVersion: Number(record.tokenVersion || 1),
+      passwordConfigured: !!(record.passwordHash && record.passwordSalt)
+    };
+  }
+
   async list() {
     const files = await fs.readdir(this.clientsDir);
     const records = [];
     for (const file of files.filter((item) => item.endsWith('.json')).sort()) {
       const record = await fs.readJson(path.join(this.clientsDir, file)).catch(() => null);
-      if (record) records.push({
-        username: record.username,
-        displayName: record.displayName,
-        sessionName: record.sessionName,
-        createdAt: record.createdAt,
-        updatedAt: record.updatedAt,
-        tokenVersion: record.tokenVersion || 1
-      });
+      if (record) records.push(this.toPublic(record));
     }
     return records;
   }
