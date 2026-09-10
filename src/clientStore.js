@@ -65,7 +65,8 @@ class ClientStore {
       username: safe,
       displayName: String(displayName || '').trim().slice(0, 100),
       sessionName,
-      ...passwordData,
+      passwordHash: passwordData.hash,
+      passwordSalt: passwordData.salt,
       tokenVersion: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -77,7 +78,25 @@ class ClientStore {
   async verifyCredentials(username, password) {
     const safe = this.sanitizeUsername(username);
     const record = await this.getByUsername(safe);
-    return record && verifyPassword(String(password || ''), record) ? record : null;
+    if (!record) return null;
+
+    // Migrate records created by the previous buggy schema.
+    if (!record.passwordHash && record.hash && record.salt) {
+      const validLegacy = verifyPassword(String(password || ''), {
+        passwordHash: record.hash,
+        passwordSalt: record.salt
+      });
+      if (!validLegacy) return null;
+      record.passwordHash = record.hash;
+      record.passwordSalt = record.salt;
+      delete record.hash;
+      delete record.salt;
+      record.updatedAt = new Date().toISOString();
+      await this.save(record);
+      return record;
+    }
+
+    return verifyPassword(String(password || ''), record) ? record : null;
   }
 
   async save(record) {
@@ -88,11 +107,14 @@ class ClientStore {
   }
 
   async updatePassword(username, newPassword) {
-    const record = await this.getByUsername(username);
+    const safe = this.sanitizeUsername(username);
+    const record = await this.getByUsername(safe);
     if (!record) throw new Error('حساب العميل غير موجود');
     const passwordData = hashPassword(newPassword);
     record.passwordHash = passwordData.hash;
     record.passwordSalt = passwordData.salt;
+    delete record.hash;
+    delete record.salt;
     record.tokenVersion = Number(record.tokenVersion || 1) + 1;
     record.updatedAt = new Date().toISOString();
     await this.save(record);
