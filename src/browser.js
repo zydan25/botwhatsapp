@@ -1,11 +1,7 @@
 const fs = require('fs-extra');
 
 let puppeteer = null;
-try {
-  puppeteer = require('puppeteer');
-} catch (_) {
-  // whatsapp-web.js normally installs Puppeteer as a dependency.
-}
+try { puppeteer = require('puppeteer'); } catch (_) {}
 
 function isSnapPath(value) {
   const p = String(value || '').toLowerCase();
@@ -21,38 +17,20 @@ async function usableExecutable(value) {
     if (isSnapPath(real)) return null;
     await fs.access(real, fs.constants.X_OK);
     return real;
-  } catch (_) {
-    return null;
-  }
+  } catch (_) { return null; }
 }
 
 async function resolveBrowserExecutable(configuredPath = null) {
-  const candidates = [
-    configuredPath,
-    process.env.CHROME_PATH,
-    '/usr/bin/chromium',
-    '/usr/lib/chromium/chromium',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/google-chrome'
-  ];
-
+  const candidates = [configuredPath, process.env.CHROME_PATH, '/usr/bin/chromium', '/usr/lib/chromium/chromium', '/usr/bin/google-chrome-stable', '/usr/bin/google-chrome'];
   for (const candidate of candidates) {
     const usable = await usableExecutable(candidate);
     if (usable) return usable;
   }
-
   if (puppeteer?.executablePath) {
-    try {
-      const bundled = await usableExecutable(puppeteer.executablePath());
-      if (bundled) return bundled;
-    } catch (_) {
-      // Continue to the explicit error below.
-    }
+    const bundled = await usableExecutable(puppeteer.executablePath());
+    if (bundled) return bundled;
   }
-
-  throw new Error(
-    'لم يتم العثور على Chromium صالح للتشغيل. المسار الحالي قد يكون Snap. ثبّت Chromium/Chrome بنسخة نظامية أو اسمح لـ Puppeteer بتنزيل متصفحه، ثم اضبط CHROME_PATH على المسار التنفيذي الصحيح.'
-  );
+  throw new Error('لم يتم العثور على Chromium صالح للتشغيل؛ تم رفض مسار Snap تلقائيًا. ثبّت Chromium/Chrome بنسخة نظامية أو اسمح لـPuppeteer بتنزيل متصفحه.');
 }
 
 module.exports = { resolveBrowserExecutable, isSnapPath };
