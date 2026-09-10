@@ -1,5 +1,6 @@
 const path = require('path');
 const http = require('http');
+const crypto = require('crypto');
 const express = require('express');
 const bodyParser = require('body-parser');
 const multer = require('multer');
@@ -33,6 +34,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Cache-Control', req.path.startsWith('/api/') ? 'no-store' : 'public, max-age=300');
   next();
 });
 app.use(bodyParser.json({ limit: '1mb' }));
@@ -48,11 +50,40 @@ setupSocketAuth(io, clientStore);
 
 const jsonError = (res, status, error) => res.status(status).json({ success: false, error });
 const sessionName = (value) => sanitizeSessionName(value);
-const publicStatus = (session, secret = false) => {
+const publicStatus = (session, secrets = false) => {
   const data = session.serialize();
-  if (secret) data.webhookSecret = session.webhookSecret;
+  if (secrets) {
+    data.webhookSecret = session.webhookSecret;
+    data.clientApiKey = getClientApiKey(session);
+  }
   return data;
 };
+
+function getClientApiKey(session) {
+  return crypto.createHmac('sha256', process.env.SESSION_SECRET).update(`client-api:${session.name}:${session.webhookSecret}`).digest('hex');
+}
+
+function getApiKey(req) {
+  const header = String(req.get('x-api-key') || '').trim();
+  if (header) return header;
+  const auth = String(req.get('authorization') || '').trim();
+  return auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
+}
+
+async function resolvePublicApiSession(req, res, next) {
+  try {
+    const name = sessionName(req.params.name);
+    const session = await manager.ensureSession(name);
+    const supplied = getApiKey(req);
+    const expected = getClientApiKey(session);
+    const ok = supplied.length === expected.length && crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+    if (!ok) return jsonError(res, 401, 'API key غير صحيحة');
+    req.publicSession = session;
+    return next();
+  } catch (e) {
+    return jsonError(res, 400, e.message);
+  }
+}
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'whatsapp-pro', timestamp: new Date().toISOString() }));
 app.get('/', (req, res) => {
@@ -63,13 +94,28 @@ app.get('/', (req, res) => {
 app.get('/admin', (req, res) => app.locals.auth.isAdminHost(req) ? requireAdmin(req, res, () => res.sendFile(path.join(ROOT_DIR, 'public', 'admin.html'))) : res.status(404).end());
 app.get('/app', (req, res) => app.locals.auth.isClientHost(req) ? requireClient(req, res, () => res.sendFile(path.join(ROOT_DIR, 'public', 'client.html'))) : res.status(404).end());
 
+// Public per-client API. Authentication is an API key derived from the session secret and session webhook secret.
+app.get('/api/v1/sessions/:name/status', resolvePublicApiSession, async (req, res) => {
+  try { res.json({ success: true, data: await req.publicSession.getPublicStatus() }); }
+  catch (e) { jsonError(res, 500, e.message); }
+});
+app.post('/api/v1/sessions/:name/send', upload.single('media'), resolvePublicApiSession, async (req, res) => {
+  try {
+    const phoneNumber = String(req.body?.phoneNumber || req.body?.to || '').trim();
+    const message = String(req.body?.message || req.body?.body || '');
+    const media = req.file ? { buffer: req.file.buffer, mimetype: req.file.mimetype, filename: req.file.originalname, size: req.file.size } : null;
+    const result = await req.publicSession.sendMessage(phoneNumber, message, media);
+    res.json({ success: true, data: result });
+  } catch (e) { jsonError(res, 400, e.message); }
+});
+
 app.use('/api/admin', requireAdmin);
 app.get('/api/admin/sessions', async (_req, res) => {
   try {
     const sessions = await manager.listStatuses({ includeSecrets: true });
     const clients = await clientStore.list();
     const map = new Map(clients.map((c) => [c.sessionName, c]));
-    res.json({ success: true, data: sessions.map((s) => ({ ...s, client: map.get(s.name) || null })) });
+    res.json({ success: true, data: sessions.map((s) => ({ ...s, client: map.get(s.name) || null, clientApiKey: getClientApiKey({ name: s.name, webhookSecret: s.webhookSecret }) })) });
   } catch (e) { jsonError(res, 500, e.message); }
 });
 app.post('/api/admin/sessions', async (req, res) => {
@@ -143,7 +189,29 @@ app.get('/api/client/me', async (req, res) => {
   try {
     const { client, s } = await clientSession(req);
     const status = await s.getPublicStatus();
-    res.json({ success: true, data: { client: { username: client.username, displayName: client.displayName }, session: { ...status, description: s.description, webhookSecret: s.webhookSecret }, api: { baseUrl: s.apiBaseUrl, webhookUrl: `${s.apiBaseUrl}/webhook/whatsapp`, statusUrl: `${s.apiBaseUrl}/webhook/session-status`, qrUrl: `${s.apiBaseUrl}/webhook/qr`, signatureHeader: 'x-whatsapp-signature' }, authentication: { method: 'HttpOnly signed cookie', scope: 'هذا الحساب مربوط بهذه الجلسة فقط' }, webhookExample: { session: s.name, botId: s.name, direction: 'in', messageId: 'message-id', from: '967xxxxxxxxx@c.us', to: '967xxxxxxxxx@c.us', body: 'نص الرسالة', type: 'chat', hasMedia: false, mediaSkipped: false, timestamp: new Date().toISOString() }, docs: { receive: 'POST /webhook/whatsapp', signature: 'HMAC-SHA256 على JSON body باستخدام Webhook Secret.', media: 'المرفقات الواردة لا يتم تنزيلها أو حفظها.' } } });
+    res.json({ success: true, data: {
+      client: { username: client.username, displayName: client.displayName },
+      session: { ...status, description: s.description, webhookSecret: s.webhookSecret, clientApiKey: getClientApiKey(s) },
+      api: {
+        baseUrl: s.apiBaseUrl,
+        sendUrl: `https://whatsapp.alattab.site/api/v1/sessions/${encodeURIComponent(s.name)}/send`,
+        statusUrl: `${s.apiBaseUrl}/webhook/session-status`,
+        receiveUrl: `${s.apiBaseUrl}/webhook/whatsapp`,
+        qrUrl: `${s.apiBaseUrl}/webhook/qr`,
+        signatureHeader: 'x-whatsapp-signature',
+        apiKeyHeader: 'x-api-key'
+      },
+      authentication: { method: 'HttpOnly signed cookie للوحة العميل + x-api-key للـAPI البرمجي', scope: 'هذا الحساب مربوط بهذه الجلسة فقط' },
+      webhookExample: { session: s.name, botId: s.name, direction: 'in', messageId: 'message-id', from: '967xxxxxxxxx@c.us', to: '967xxxxxxxxx@c.us', body: 'نص الرسالة', type: 'chat', hasMedia: false, mediaSkipped: false, timestamp: new Date().toISOString() },
+      outgoingExample: { session: s.name, botId: s.name, direction: 'out', messageId: 'message-id', to: '9677xxxxxxx', body: 'مرحبا', type: 'text', timestamp: new Date().toISOString() },
+      docs: {
+        send: 'POST /api/v1/sessions/{sessionName}/send مع x-api-key وphoneNumber وmessage.',
+        receive: 'POST /webhook/whatsapp على API الخاص بالعميل.',
+        status: 'GET /api/v1/sessions/{sessionName}/status مع x-api-key.',
+        signature: 'HMAC-SHA256 على JSON body باستخدام Webhook Secret الخاص بالجلسة.',
+        media: 'المرفقات الواردة لا يتم تنزيلها أو حفظها؛ المرفقات الخارجة يمكن إرسالها عبر multipart/form-data.'
+      }
+    } });
   } catch (e) { jsonError(res, 400, e.message); }
 });
 app.get('/api/client/messages', async (req, res) => { try { const { client } = await clientSession(req); res.json({ success: true, data: await store.getMessages(sessionName(client.sessionName), 100, 0) }); } catch (e) { jsonError(res, 400, e.message); } });
@@ -165,6 +233,7 @@ app.post('/api/client/password', async (req, res) => {
   } catch (e) { jsonError(res, 400, e.message); }
 });
 
+// Legacy admin-only session API retained for compatibility.
 app.use('/api/sessions', requireAdmin);
 app.get('/api/sessions', async (_req, res) => { try { res.json({ success: true, data: await manager.listStatuses({ includeSecrets: true }) }); } catch (e) { jsonError(res, 500, e.message); } });
 app.get('/api/sessions/:name/status', async (req, res) => { try { const s = await manager.ensureSession(sessionName(req.params.name)); res.json({ success: true, data: await s.getPublicStatus() }); } catch (e) { jsonError(res, 400, e.message); } });
