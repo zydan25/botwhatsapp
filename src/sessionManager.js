@@ -102,6 +102,18 @@ class WhatsAppSession {
 
   async buildClient() {
     const executablePath = await resolveBrowserExecutable(this.chromePath);
+    const args = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-background-timer-throttling',
+      '--disable-renderer-backgrounding',
+      '--disable-features=TranslateUI'
+    ];
     return new Client({
       authStrategy: new LocalAuth({
         clientId: this.name,
@@ -112,16 +124,7 @@ class WhatsAppSession {
         headless: true,
         executablePath,
         timeout: 600000,
-        args: [
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-extensions',
-          '--disable-background-networking',
-          '--disable-default-apps',
-          '--disable-background-timer-throttling',
-          '--disable-renderer-backgrounding',
-          '--disable-features=TranslateUI'
-        ]
+        args
       }
     });
   }
@@ -319,9 +322,7 @@ class WhatsAppSession {
     if (!this.client || this.status !== 'connected') throw new Error('الجلسة غير جاهزة للإرسال');
     const jid = normalizePhoneToJid(phoneNumber);
     let content = message || '';
-    if (media?.buffer) {
-      content = new MessageMedia(media.mimetype, media.buffer.toString('base64'), media.filename, media.size);
-    }
+    if (media?.buffer) content = new MessageMedia(media.mimetype, media.buffer.toString('base64'), media.filename, media.size);
     const sent = media?.buffer
       ? await this.client.sendMessage(jid, content, { caption: message || '', sendSeen: false })
       : await this.client.sendMessage(jid, content, { sendSeen: false });
