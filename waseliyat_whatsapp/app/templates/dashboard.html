@@ -1,0 +1,15 @@
+{% extends 'base.html' %}{% block content %}
+<section class="dashboard-head"><div><span class="eyebrow">مساحة العمل</span><h1>أهلًا {{ current_user.username }} 👋</h1><p>كل جلساتك ورسائلك من شاشة واحدة، مع تحديثات مباشرة.</p></div><a class="btn primary" href="{{ url_for('main.session_new') }}">＋ إضافة جلسة</a></section>
+<div id="session-grid" class="session-grid">
+{% for s in sessions %}
+<article class="session-card" data-session-id="{{ s.id }}" data-status="{{ s.status }}">
+  <div class="session-top"><div class="session-brand"><span class="mini-icon"><img src="{{ url_for('static', filename='icons/icon.svg') }}" alt=""></span><div><h3>{{ s.display_name }}</h3><small>{{ s.name }}</small></div></div><span class="status-dot {{ s.status }}">{{ s.status }}</span></div>
+  <div class="session-stats"><div><small>الوارد</small><strong data-incoming>{{ s.incoming_count }}</strong></div><div><small>الصادر</small><strong data-outgoing>{{ s.outgoing_count }}</strong></div><div><small>API</small><strong class="api-short">مفعل</strong></div></div>
+  <div class="session-actions"><a class="btn ghost" href="{{ url_for('main.session_detail', session_id=s.id) }}">فتح الجلسة</a><button class="btn outline action-btn" data-action="connect">ربط</button></div>
+</article>
+{% else %}
+<div class="empty-card"><div class="soft-icon big">◎</div><h3>لا توجد جلسات بعد</h3><p>أضف أول جلسة وابدأ ربط رقم واتساب.</p><a class="btn primary" href="{{ url_for('main.session_new') }}">إضافة جلسة</a></div>
+{% endfor %}
+</div>
+<div class="quick-strip"><div><b>التحديثات المباشرة</b><span>Socket.IO + مزامنة حالة</span></div><div class="live-badge"><span class="live-dot"></span> مباشر</div></div>
+{% endblock %}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#8f1740">
+  <meta name="description" content="ربطيات واتساب - إدارة جلسات WhatsApp API بطريقة أنيقة وسريعة.">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <title>{{ title or config.APP_NAME }}</title>
+</head>
+<body class="app-shell">
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  {% if current_user.is_authenticated %}
+  <header class="topbar">
+    <a href="{{ url_for('main.dashboard') }}" class="brand-inline">
+      <span class="brand-mark"><img src="{{ url_for('static', filename='icons/icon.svg') }}" alt=""></span>
+      <span><strong>ربطيات</strong><small>واتساب</small></span>
+    </a>
+    <div class="top-actions">
+      <a class="icon-btn" href="{{ url_for('main.notifications') }}" aria-label="الإشعارات">⌁{% if unread %}<b>{{ unread }}</b>{% endif %}</a>
+      <a class="avatar" href="{{ url_for('auth.account_settings') }}">{{ current_user.username[:1]|upper }}</a>
+    </div>
+  </header>
+  {% endif %}
+  <main class="page-wrap">{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}{% block content %}{% endblock %}</main>
+  {% if current_user.is_authenticated %}
+  <nav class="bottom-nav" aria-label="التنقل">
+    <a href="{{ url_for('main.dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'main.dashboard' else '' }}"><span>⌂</span><small>الرئيسية</small></a>
+    <a href="{{ url_for('main.session_new') }}" class="nav-item {{ 'active' if request.endpoint == 'main.session_new' else '' }}"><span>＋</span><small>جلسة</small></a>
+    <a href="{{ url_for('main.api_guide') }}" class="nav-item {{ 'active' if request.endpoint == 'main.api_guide' else '' }}"><span>{ }</span><small>API</small></a>
+    <a href="{{ url_for('auth.account_settings') }}" class="nav-item {{ 'active' if request.endpoint == 'auth.account_settings' else '' }}"><span>⚙</span><small>الإعدادات</small></a>
+  </nav>
+  {% endif %}
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

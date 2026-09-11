@@ -1,0 +1,6 @@
+{% extends 'base.html' %}{% block content %}
+<section class="narrow-page">
+  <div class="page-heading"><div><span class="eyebrow">الخطوة الإلزامية</span><h1>عقد الاستخدام</h1><p>يجب قراءة العقد والموافقة عليه قبل الدخول إلى لوحة التحكم.</p></div><span class="version-badge">v{{ contract.version }}</span></div>
+  <article class="contract-card"><div class="contract-head"><div class="soft-icon">✓</div><div><h2>{{ contract.title }}</h2><small>تم تحديث العقد حسب الإصدار الحالي</small></div></div><div class="contract-body">{{ contract.body }}</div>
+  <form method="post" action="{{ url_for('main.contracts_accept') }}"><label class="check-row"><input required type="checkbox"><span>قرأت العقد وأوافق على الالتزام به واستخدام المنصة بشكل مسؤول.</span></label><button class="btn primary large" type="submit">أوافق وأدخل النظام <span>←</span></button></form></article>
+</section>{% endblock %}

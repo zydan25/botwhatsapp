@@ -1,0 +1,69 @@
+-- PostgreSQL schema reference for Waseliyat WhatsApp.
+CREATE TABLE IF NOT EXISTS "user" (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(80) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS contract (
+  id SERIAL PRIMARY KEY,
+  version VARCHAR(40) NOT NULL UNIQUE,
+  title VARCHAR(200) NOT NULL,
+  body TEXT NOT NULL,
+  required BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS user_contract (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  contract_id INTEGER NOT NULL REFERENCES contract(id) ON DELETE CASCADE,
+  accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, contract_id)
+);
+CREATE TABLE IF NOT EXISTS whatsapp_session (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(32) NOT NULL UNIQUE,
+  display_name VARCHAR(120) NOT NULL,
+  api_base_url VARCHAR(500) NOT NULL,
+  webhook_base_url VARCHAR(500),
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  status VARCHAR(30) NOT NULL DEFAULT 'idle',
+  qr_available BOOLEAN NOT NULL DEFAULT FALSE,
+  backup_phone VARCHAR(32),
+  last_error TEXT,
+  info_json TEXT NOT NULL DEFAULT '{}',
+  started_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_message_at TIMESTAMPTZ,
+  incoming_count INTEGER NOT NULL DEFAULT 0,
+  outgoing_count INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS message_log (
+  id SERIAL PRIMARY KEY,
+  session_name VARCHAR(32) NOT NULL,
+  direction VARCHAR(8) NOT NULL,
+  message_id VARCHAR(200),
+  sender VARCHAR(100),
+  recipient VARCHAR(100),
+  body TEXT NOT NULL DEFAULT '',
+  message_type VARCHAR(40) NOT NULL DEFAULT 'text',
+  has_media BOOLEAN NOT NULL DEFAULT FALSE,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS notification (
+  id SERIAL PRIMARY KEY,
+  session_name VARCHAR(32),
+  level VARCHAR(20) NOT NULL DEFAULT 'info',
+  title VARCHAR(200) NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  read BOOLEAN NOT NULL DEFAULT FALSE
+);
+CREATE TABLE IF NOT EXISTS audit_log (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES "user"(id),
+  action VARCHAR(120) NOT NULL,
+  details TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

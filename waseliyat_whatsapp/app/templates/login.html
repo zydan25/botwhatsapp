@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#8f1740"><link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}"><link rel="icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml"><link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}"><title>ربطيات واتساب | تسجيل الدخول</title></head>
+<body class="auth-page">
+<div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+<section class="login-card">
+  <div class="server-pill"><span class="live-dot"></span> الخادم متصل ونشط <b>محليًا</b></div>
+  <div class="hero-icon"><img src="{{ url_for('static', filename='icons/icon.svg') }}" alt="ربطيات واتساب"></div>
+  <div class="brand-title"><b>ربطيات</b> واتساب</div>
+  <p class="brand-subtitle">البوابة المتكاملة لربط جلسات واتساب، واجهات API، والرسائل الفورية</p>
+  <div class="login-panel">
+    <div class="segmented active">تسجيل الدخول</div>
+    <form method="post" class="form-grid">
+      <label class="input-wrap"><span>اسم المستخدم</span><input name="username" type="text" inputmode="text" autocomplete="username" placeholder="اسم المستخدم" value="{{ username or '' }}"><i>⌕</i></label>
+      <label class="input-wrap"><span>كلمة المرور</span><input id="password" name="password" type="password" autocomplete="current-password" placeholder="كلمة المرور"><button type="button" class="eye" data-toggle-password="#password">◉</button></label>
+      <button class="btn primary large" type="submit">تسجيل الدخول المباشر <span>←</span></button>
+    </form>
+  </div>
+  <div class="login-footer">برمجة وتطوير: يمن كود للتقنيات الذكية</div>
+</section>
+</body></html>

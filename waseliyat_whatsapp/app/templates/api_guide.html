@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% block content %}
+<section class="page-heading"><div><span class="eyebrow">المطورون</span><h1>مسار الربط ومرجع API</h1><p>مرجع منسق مستند إلى دليل WhatsApp Pro Multi Session المرفق بالمشروع.</p></div><a class="btn outline" href="{{ url_for('main.api_guide_pdf') }}">تصدير PDF ↧</a></section>
+<div class="api-callout"><div><b>الجلسة الحالية</b><code>{{ session.name if session else 'basheer' }}</code></div><div><b>Base URL</b><code>{{ session.api_base_url if session else 'https://whatsapp.alattab.site' }}</code></div></div>
+<div class="api-grid">
+{% for title, method, path, body in [
+('فحص الحالة','GET','/api/sessions/{session}/status',''),('QR كنص','GET','/api/sessions/{session}/qr',''),('QR كصورة','GET','/api/sessions/{session}/qr-image',''),('تشغيل الجلسة','POST','/api/sessions/{session}/connect','{}'),('فصل الجلسة','POST','/api/sessions/{session}/disconnect','{}'),('تسجيل الخروج','POST','/api/sessions/{session}/logout','{}'),('إرسال رسالة','POST','/api/sessions/{session}/send','multipart/form-data: phoneNumber, message, media(optional)'),('API خارجي','POST','/api/sessions/{session}/api-url','{"apiBaseUrl":"https://example.com"}'),('الرسائل','GET','/api/sessions/{session}/messages','?limit=50&offset=0'),('الأخطاء','GET','/api/sessions/{session}/errors','?limit=25'),('التنبيهات','GET','/api/sessions/{session}/notifications','?limit=50')]
+%}<article class="api-card"><div class="method {{ method|lower }}">{{ method }}</div><div class="api-card-main"><h3>{{ title }}</h3><button class="copy-btn" data-copy="{{ (session.api_base_url if session else config.WHATSAPP_API_BASE_URL) ~ path.replace('{session}', session.name if session else 'basheer') }}">نسخ</button><code>{{ path.replace('{session}', session.name if session else 'basheer') }}</code>{% if body %}<pre>{{ body }}</pre>{% endif %}</div></article>{% endfor %}
+</div>
+<div class="webhook-card"><span class="eyebrow">Webhook</span><h2>استقبال الرسائل والحالة</h2><p>ضع رابط التطبيق الخارجي في <code>apiBaseUrl</code> لتصل الأحداث إلى <code>/webhook/whatsapp</code> و<code>/webhook/session-status</code> و<code>/webhook/qr</code>.</p><pre>POST https://YOUR-BACKEND/webhook/whatsapp
+POST https://YOUR-BACKEND/webhook/session-status
+POST https://YOUR-BACKEND/webhook/qr</pre></div>
+{% endblock %}

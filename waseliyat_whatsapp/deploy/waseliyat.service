@@ -1,0 +1,18 @@
+[Unit]
+Description=Waseliyat WhatsApp Flask PWA
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/root/projects/waseliyat_whatsapp
+EnvironmentFile=/home/root/projects/waseliyat_whatsapp/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/root/projects/waseliyat_whatsapp/.venv/bin/python -m gunicorn -k eventlet -w 1 -b 0.0.0.0:3333 wsgi:app
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
