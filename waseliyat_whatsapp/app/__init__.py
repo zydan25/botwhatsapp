@@ -22,12 +22,31 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+def _database_uri(app):
+    """Return a safe database URI for the current deployment.
+
+    Flask-SQLAlchemy resolves relative SQLite paths against Flask's instance path.
+    The old value ``sqlite:///instance/waseliyat.db`` therefore points at
+    ``instance/instance/waseliyat.db`` and can fail when the nested directory
+    does not exist. Normalize that legacy value to the intended instance file.
+    """
+    uri = os.getenv('DATABASE_URL', '').strip()
+    if not uri:
+        return 'sqlite:///waseliyat.db'
+
+    if uri.startswith('sqlite:///instance/'):
+        filename = uri[len('sqlite:///instance/'):]
+        return f'sqlite:///{filename}'
+
+    return uri
+
+
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
     os.makedirs(app.instance_path, exist_ok=True)
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY', 'dev-change-me'),
-        SQLALCHEMY_DATABASE_URI=os.getenv('DATABASE_URL', 'sqlite:///instance/waseliyat.db'),
+        SQLALCHEMY_DATABASE_URI=_database_uri(app),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         APP_NAME=os.getenv('APP_NAME', 'ربطيات واتساب'),
         APP_PORT=int(os.getenv('APP_PORT', '3333')),
