@@ -1,15 +1,15 @@
 [Unit]
-Description=Waseliyat WhatsApp Flask PWA
+Description=Waseliyat WhatsApp Flask PWA (legacy optional systemd unit)
 After=network.target
 
 [Service]
 Type=simple
 User=root
 Group=root
-WorkingDirectory=/home/root/projects/waseliyat_whatsapp
-EnvironmentFile=/home/root/projects/waseliyat_whatsapp/.env
+WorkingDirectory=/home/root/projects/waseliyat
+EnvironmentFile=/home/root/projects/waseliyat/.env
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/root/projects/waseliyat_whatsapp/.venv/bin/python -m gunicorn -k eventlet -w 1 -b 0.0.0.0:3333 wsgi:app
+ExecStart=/home/root/projects/waseliyat/.venv/bin/python -m gunicorn -k eventlet -w 1 -b 0.0.0.0:3333 wsgi:app
 Restart=always
 RestartSec=5
 TimeoutStopSec=30
