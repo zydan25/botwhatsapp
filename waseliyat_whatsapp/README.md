@@ -17,16 +17,32 @@
 - Webhooks لاستقبال الرسائل والحالة وQR.
 - قاعدة بيانات منظمة + `schema.sql` كمرجع PostgreSQL.
 - سجل رسائل وإشعارات وAudit Log.
-- ملف systemd وملف Nginx جاهزان.
+- ملف Nginx جاهز.
+- إعداد **PM2** جاهز لإدارة العملية وإعادة تشغيلها تلقائيًا.
+- ملف systemd موجود كخيار بديل فقط، وليس مدير التشغيل الأساسي.
+
+## المسار على السيرفر
+
+يجب أن يكون المشروع في:
+
+```text
+/home/root/projects/waseliyat
+```
+
+والبيئة الافتراضية:
+
+```text
+/home/root/projects/waseliyat/.venv
+```
 
 ## API المعتمد
 
 تمت مواءمة التكامل مع الدليل المرفق للمشروع، وليس مع API افتراضي. الدليل يحدد base URL الحالي `https://whatsapp.alattab.site`، ومسارات الجلسة مثل status/qr/connect/disconnect/logout/send/api-url/messages/errors/notifications، ويدعم `multipart/form-data` للإرسال مع `phoneNumber` و`message` و`media`. كما يوضح استخدام Socket.IO والتحديثات الفورية، والـwebhooks الخاصة بالرسائل والحالة وQR.
 
-## تشغيل محليًا
+## التشغيل محليًا
 
 ```bash
-cd /home/root/projects/waseliyat_whatsapp
+cd /home/root/projects/waseliyat
 python3 -m venv .venv
 source .venv/bin/activate
 cp .env.example .env
@@ -37,16 +53,74 @@ python run.py
 
 افتح: `http://127.0.0.1:3333`
 
-## نشر مع systemd
+## التشغيل الإنتاجي باستخدام PM2
+
+هذا هو مدير التشغيل الأساسي لهذا المشروع.
 
 ```bash
-cd /home/root/projects/waseliyat_whatsapp
+cd /home/root/projects/waseliyat
+
+# تثبيت المتطلبات
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# إعداد البيئة
 cp .env.example .env
 nano .env
-bash deploy/install.sh
-systemctl status waseliyat
-journalctl -u waseliyat -f
+
+# تثبيت PM2 إذا لم يكن موجودًا
+npm install -g pm2
+
+# تشغيل التطبيق
+pm2 start ecosystem.config.js
+pm2 save
 ```
+
+التحقق:
+
+```bash
+pm2 status
+pm2 logs waseliyat
+```
+
+إعادة التشغيل:
+
+```bash
+pm2 restart waseliyat
+```
+
+الإيقاف:
+
+```bash
+pm2 stop waseliyat
+```
+
+## تشغيل PM2 تلقائيًا بعد إعادة تشغيل السيرفر
+
+بعد تسجيل الدخول بنفس المستخدم الذي يشغل PM2 نفذ:
+
+```bash
+pm2 startup
+```
+
+ثم نفذ أمر `sudo` الذي سيطبعه PM2، وبعده:
+
+```bash
+pm2 save
+```
+
+## التثبيت الآلي
+
+بعد وضع المشروع في `/home/root/projects/waseliyat`:
+
+```bash
+cd /home/root/projects/waseliyat
+bash deploy/install.sh
+```
+
+يقوم الملف بإنشاء `.venv` وتثبيت المتطلبات وتهيئة `.env` إن لم يكن موجودًا وتثبيت PM2 وتشغيل التطبيق باسمه `waseliyat` ثم حفظ قائمة PM2.
 
 ## PostgreSQL
 
