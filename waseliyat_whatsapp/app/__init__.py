@@ -85,6 +85,7 @@ def create_app():
     from .takhfid_profile_v2 import takhfid_profile_v2_bp
     from .takhfid_orders_v2 import takhfid_orders_v2_bp
     from .takhfid_chat_v2 import takhfid_chat_v2_bp
+    from .takhfid_admin_v2 import takhfid_admin_v2_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -94,6 +95,7 @@ def create_app():
     app.register_blueprint(takhfid_profile_v2_bp)
     app.register_blueprint(takhfid_orders_v2_bp)
     app.register_blueprint(takhfid_chat_v2_bp)
+    app.register_blueprint(takhfid_admin_v2_bp)
 
     @login_manager.user_loader
     def load_user(user_id):
