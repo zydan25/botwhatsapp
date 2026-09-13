@@ -26,12 +26,7 @@ class TakhfidSetting(db.Model):
     key = db.Column(db.String(120), nullable=False, unique=True, index=True)
     value = db.Column(db.Text, default="", nullable=False)
     secret = db.Column(db.Boolean, default=False, nullable=False)
-    updated_at = db.Column(
-        db.DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
 
 class TakhfidOtp(db.Model):
@@ -41,11 +36,7 @@ class TakhfidOtp(db.Model):
     code_hash = db.Column(db.String(128), nullable=False)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     attempts = db.Column(db.Integer, default=0, nullable=False)
-    sent_at = db.Column(
-        db.DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
+    sent_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     __table_args__ = (UniqueConstraint("phone", name="uq_takhfid_otp_phone"),)
 
 
@@ -86,6 +77,14 @@ def normalize_phone(value: str) -> str:
     return digits
 
 
+def _utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def _setting(key: str, default: str = "") -> str:
     row = TakhfidSetting.query.filter_by(key=key).first()
     return row.value if row else default
@@ -107,9 +106,9 @@ def _admin_user() -> bool:
     configured = []
     configured.extend(os.getenv("TAKHFIID_ADMIN_USERS", "").split(","))
     configured.extend(os.getenv("ADMIN_USERNAME", "zydan").split(","))
-    configured = {str(name).strip().casefold() for name in configured if str(name).strip()}
+    allowed = {str(name).strip().casefold() for name in configured if str(name).strip()}
     username = str(getattr(current_user, "username", "")).strip().casefold()
-    return bool(username and username in configured)
+    return bool(username and username in allowed)
 
 
 def _otp_secret() -> str:
@@ -181,11 +180,12 @@ def pricing():
 def send_otp():
     payload = request.get_json(silent=True) or request.form
     phone = normalize_phone(payload.get("phoneNumber"))
-    if not phone or not phone.isdigit() or not 8 <= len(phone) <= 15:
+    if not phone.isdigit() or not 8 <= len(phone) <= 15:
         return jsonify({"success": False, "error": "رقم الهاتف غير صالح"}), 400
     now = datetime.now(timezone.utc)
     old = TakhfidOtp.query.filter_by(phone=phone).first()
-    if old and (now - old.sent_at).total_seconds() < 60:
+    sent_at = _utc(old.sent_at) if old else None
+    if sent_at and (now - sent_at).total_seconds() < 60:
         return jsonify({"success": False, "error": "انتظر قبل إعادة الإرسال"}), 429
     code = f"{secrets.randbelow(1_000_000):06d}"
     try:
@@ -218,7 +218,8 @@ def verify_otp():
     if not row:
         return jsonify({"success": False, "error": "لا يوجد رمز نشط"}), 400
     now = datetime.now(timezone.utc)
-    if row.expires_at < now:
+    expires_at = _utc(row.expires_at)
+    if expires_at is None or expires_at < now:
         db.session.delete(row)
         db.session.commit()
         return jsonify({"success": False, "error": "انتهت صلاحية الرمز"}), 400
