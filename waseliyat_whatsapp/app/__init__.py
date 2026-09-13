@@ -23,21 +23,13 @@ def utcnow():
 
 
 def _database_uri(app):
-    """Return a safe database URI for the current deployment.
-
-    Flask-SQLAlchemy resolves relative SQLite paths against Flask's instance path.
-    The old value ``sqlite:///instance/waseliyat.db`` therefore points at
-    ``instance/instance/waseliyat.db`` and can fail when the nested directory
-    does not exist. Normalize that legacy value to the intended instance file.
-    """
+    """Return a safe database URI for the current deployment."""
     uri = os.getenv('DATABASE_URL', '').strip()
     if not uri:
         return 'sqlite:///waseliyat.db'
-
     if uri.startswith('sqlite:///instance/'):
         filename = uri[len('sqlite:///instance/'):]
         return f'sqlite:///{filename}'
-
     return uri
 
 
@@ -54,6 +46,7 @@ def create_app():
         STATUS_POLL_SECONDS=max(2, int(os.getenv('STATUS_POLL_SECONDS', '4'))),
         WHATSAPP_API_BASE_URL=os.getenv('WHATSAPP_API_BASE_URL', 'https://whatsapp.alattab.site').rstrip('/'),
         WEBHOOK_SECRET=os.getenv('WEBHOOK_SECRET', ''),
+        TAKHFIID_WHATSAPP_SESSION=os.getenv('TAKHFIID_WHATSAPP_SESSION', 'basheer'),
     )
 
     db.init_app(app)
@@ -66,10 +59,12 @@ def create_app():
     from .auth import auth_bp
     from .main import main_bp
     from .api import api_bp
+    from .takhfid import takhfid_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api/internal')
+    app.register_blueprint(takhfid_bp)
 
     @login_manager.user_loader
     def load_user(user_id):
