@@ -56,6 +56,12 @@ def create_app():
     login_manager.login_message = 'يرجى تسجيل الدخول أولاً.'
     socketio.init_app(app)
 
+    @app.before_request
+    def handle_takhfid_preflight():
+        if request.path.startswith('/takhfid/api/') and request.method == 'OPTIONS':
+            return app.make_response(('', 204))
+        return None
+
     @app.after_request
     def add_takhfid_cors_headers(response):
         if request.path.startswith('/takhfid/api/'):
@@ -66,6 +72,7 @@ def create_app():
                 response.headers['Vary'] = 'Origin'
                 response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
                 response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Authorization'
+                response.headers['Access-Control-Max-Age'] = '600'
         return response
 
     from .models import User
