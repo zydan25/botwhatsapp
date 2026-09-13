@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="dashboard-head">
+  <div>
+    <span class="eyebrow">Takhfid Integration</span>
+    <h1>إدارة التخفيض</h1>
+    <p>إعدادات واتساب، OTP، وأسعار المحافظات من نفس لوحة Flask.</p>
+  </div>
+  <a class="btn ghost" href="{{ url_for('main.dashboard') }}">العودة للبوت</a>
+</section>
+
+<div class="session-grid">
+  <article class="session-card">
+    <div class="session-top"><div class="session-brand"><span class="mini-icon">🔐</span><div><h3>OTP وتسجيل الدخول</h3><small>الخدمة المرتبطة بمتجر التخفيض</small></div></div><span class="status-dot connected">جاهز</span></div>
+    <div class="session-stats"><div><small>جلسة واتساب</small><strong>{{ config.get('TAKHFIID_WHATSAPP_SESSION', 'basheer') }}</strong></div><div><small>صلاحية الرمز</small><strong>5 د</strong></div><div><small>إعادة الإرسال</small><strong>60ث</strong></div></div>
+    <div class="session-actions"><a class="btn primary" href="{{ url_for('main.session_detail', session_id=1) }}">فتح إدارة الجلسات</a></div>
+  </article>
+
+  <article class="session-card">
+    <div class="session-top"><div class="session-brand"><span class="mini-icon">💰</span><div><h3>التسعير حسب المحافظة</h3><small>تعديل الصرف والزيادة والتوصيل</small></div></div><span class="status-dot connected">نشط</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>المحافظة</th><th>المنطقة</th><th>SAR/YER</th><th>USD/YER</th><th>الزيادة%</th><th>التوصيل</th></tr></thead>
+        <tbody>
+        {% for governorate, p in pricing.items() %}
+          <tr data-governorate="{{ governorate }}">
+            <td><strong>{{ governorate }}</strong></td>
+            <td>{{ 'جنوب' if p.region == 'south' else 'شمال' }}</td>
+            <td><input data-field="sarToYerRate" type="number" min="0" step="0.01" value="{{ p.sarToYerRate }}"></td>
+            <td><input data-field="usdToYerRate" type="number" min="0" step="0.01" value="{{ p.usdToYerRate }}"></td>
+            <td><input data-field="markupValue" type="number" min="0" step="0.1" value="{{ p.markupValue }}"></td>
+            <td><input data-field="deliveryFee" type="number" min="0" step="1" value="{{ p.deliveryFee }}"></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="session-actions"><button class="btn primary" id="save-pricing">حفظ جميع الأسعار</button><span id="save-result" class="muted"></span></div>
+  </article>
+
+  <article class="session-card">
+    <div class="session-top"><div class="session-brand"><span class="mini-icon">⚙️</span><div><h3>إعدادات Takhfid</h3><small>قيم الخادم المخصصة للمشروع</small></div></div></div>
+    <div class="form-stack">
+      <label>جلسة WhatsApp المستخدمة للـOTP<input id="whatsapp_session" value="{{ config.get('TAKHFIID_WHATSAPP_SESSION', 'basheer') }}"></label>
+      <label>رقم/أرقام الإدارة<input id="admin_phones" placeholder="9677XXXXXXX,9677YYYYYYY"></label>
+      <label>سر Hash للـOTP<input id="otp_hash_secret" type="password" placeholder="اتركه فارغًا للاحتفاظ بالقيمة الحالية"></label>
+    </div>
+    <div class="session-actions"><button class="btn primary" id="save-settings">حفظ الإعدادات</button><span id="settings-result" class="muted"></span></div>
+  </article>
+</div>
+
+<style>
+.table-wrap{overflow:auto;margin-top:12px}.data-table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:12px;min-width:720px}.data-table th{text-align:right;color:#777;padding:0 8px}.data-table td{background:#faf7f8;padding:8px}.data-table tr td:first-child{border-radius:10px 0 0 10px}.data-table tr td:last-child{border-radius:0 10px 10px 0}.data-table input,.form-stack input{width:100%;padding:9px;border:1px solid #eadfe4;border-radius:10px;background:#fff;box-sizing:border-box}.form-stack{display:grid;gap:12px;margin-top:14px}.form-stack label{font-size:12px;font-weight:700;color:#4a3b42}.form-stack input{display:block;margin-top:6px;font-weight:400}.muted{font-size:12px;color:#777}
+</style>
+<script>
+(() => {
+  const savePricing = document.getElementById('save-pricing');
+  const pricingResult = document.getElementById('save-result');
+  savePricing?.addEventListener('click', async () => {
+    savePricing.disabled = true;
+    try {
+      for (const row of document.querySelectorAll('tr[data-governorate]')) {
+        const body = {};
+        row.querySelectorAll('[data-field]').forEach((input) => body[input.dataset.field] = Number(input.value || 0));
+        const name = encodeURIComponent(row.dataset.governorate);
+        const response = await fetch(`{{ url_for('takhfid.pricing_save', governorate='__GOV__') }}`.replace('__GOV__', name), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        if (!response.ok) throw new Error(await response.text());
+      }
+      pricingResult.textContent = 'تم حفظ الأسعار ✅';
+    } catch (error) { console.error(error); pricingResult.textContent = 'تعذر حفظ بعض الأسعار'; }
+    finally { savePricing.disabled = false; }
+  });
+
+  const saveSettings = document.getElementById('save-settings');
+  const settingsResult = document.getElementById('settings-result');
+  saveSettings?.addEventListener('click', async () => {
+    saveSettings.disabled = true;
+    try {
+      const entries = [
+        ['whatsapp_session', document.getElementById('whatsapp_session').value],
+        ['admin_phones', document.getElementById('admin_phones').value],
+      ];
+      const otp = document.getElementById('otp_hash_secret').value;
+      if (otp) entries.push(['otp_hash_secret', otp]);
+      for (const [key, value] of entries) {
+        const response = await fetch('{{ url_for("takhfid.settings_save") }}', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key, value})});
+        if (!response.ok) throw new Error(await response.text());
+      }
+      settingsResult.textContent = 'تم حفظ الإعدادات ✅';
+    } catch (error) { console.error(error); settingsResult.textContent = 'تعذر حفظ الإعدادات'; }
+    finally { saveSettings.disabled = false; }
+  });
+})();
+</script>
+{% endblock %}
