@@ -1,0 +1,4 @@
+{% extends 'takhfid_admin/base.html' %}
+{% block tk_content %}
+<section class="tk-card"><div class="tk-actions" style="justify-content:space-between"><div><h2 style="margin:0;font-size:1rem">محادثة {{ order.orderNumber }}</h2><p class="tk-muted">{{ order.customerName }} · {{ order.customerPhone }} · {{ order.status }}</p></div><a class="btn ghost" href="{{ url_for('takhfid_admin_v2.orders') }}">رجوع</a></div><div class="tk-chat" style="margin-top:14px">{% for m in messages %}<div class="tk-msg {{ m.senderRole }}">{% if m.imageUrl %}<img src="{{ m.imageUrl }}" alt="إثبات الدفع">{% endif %}{% if m.text %}<div>{{ m.text }}</div>{% endif %}<small class="tk-muted">{{ m.createdAt }}</small></div>{% else %}<div class="tk-muted">لا توجد رسائل.</div>{% endfor %}</div><div style="margin-top:14px"><p class="tk-muted">الإرسال اللحظي الكامل يتم من واجهة المتجر عبر Socket.IO، وهذه الصفحة مخصصة للمراجعة والإدارة من الخادم.</p></div></section>
+{% endblock %}
