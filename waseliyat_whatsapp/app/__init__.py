@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import os
+import secrets
 import threading
 import time
 from datetime import datetime, timezone
 
-import requests
 from dotenv import load_dotenv
 from flask import Flask, request
 from flask_login import LoginManager
@@ -23,7 +25,6 @@ def utcnow():
 
 
 def _database_uri(app):
-    """Return a safe database URI for the current deployment."""
     uri = os.getenv('DATABASE_URL', '').strip()
     if not uri:
         return 'sqlite:///waseliyat.db'
@@ -82,6 +83,7 @@ def create_app():
     from .takhfid import takhfid_bp
     from .takhfid_v2 import takhfid_v2_bp
     from .takhfid_profile_v2 import takhfid_profile_v2_bp
+    from .takhfid_orders_v2 import takhfid_orders_v2_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -89,6 +91,7 @@ def create_app():
     app.register_blueprint(takhfid_bp)
     app.register_blueprint(takhfid_v2_bp)
     app.register_blueprint(takhfid_profile_v2_bp)
+    app.register_blueprint(takhfid_orders_v2_bp)
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -107,7 +110,10 @@ def _seed_data(app):
     from werkzeug.security import generate_password_hash
 
     username = os.getenv('ADMIN_USERNAME', 'zydan').strip()
-    password = os.getenv('ADMIN_PASSWORD', '774952665')
+    password = os.getenv('ADMIN_PASSWORD')
+    if not password:
+        password = secrets.token_urlsafe(24)
+        app.logger.warning('ADMIN_PASSWORD is not configured; generated a new admin password for this run.')
     user = User.query.filter_by(username=username).first()
     if not user:
         user = User(username=username, password_hash=generate_password_hash(password))
