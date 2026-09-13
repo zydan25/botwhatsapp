@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, request
 from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
@@ -47,6 +47,7 @@ def create_app():
         WHATSAPP_API_BASE_URL=os.getenv('WHATSAPP_API_BASE_URL', 'https://whatsapp.alattab.site').rstrip('/'),
         WEBHOOK_SECRET=os.getenv('WEBHOOK_SECRET', ''),
         TAKHFIID_WHATSAPP_SESSION=os.getenv('TAKHFIID_WHATSAPP_SESSION', 'basheer'),
+        TAKHFIID_ALLOWED_ORIGIN=os.getenv('TAKHFIID_ALLOWED_ORIGIN', 'https://zydan25.github.io'),
     )
 
     db.init_app(app)
@@ -54,6 +55,18 @@ def create_app():
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'يرجى تسجيل الدخول أولاً.'
     socketio.init_app(app)
+
+    @app.after_request
+    def add_takhfid_cors_headers(response):
+        if request.path.startswith('/takhfid/api/'):
+            origin = request.headers.get('Origin')
+            allowed = app.config['TAKHFIID_ALLOWED_ORIGIN']
+            if origin and (origin == allowed or allowed == '*'):
+                response.headers['Access-Control-Allow-Origin'] = origin
+                response.headers['Vary'] = 'Origin'
+                response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Authorization'
+        return response
 
     from .models import User
     from .auth import auth_bp
