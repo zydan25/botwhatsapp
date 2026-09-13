@@ -1,0 +1,13 @@
+{% extends 'takhfid_admin/base.html' %}
+{% block tk_content %}
+<div class="tk-grid">
+  <div class="tk-card tk-stat"><span>العملاء</span><strong>{{ stats.customers }}</strong><small class="tk-muted">حسابات التخفيض</small></div>
+  <div class="tk-card tk-stat"><span>المنتجات</span><strong>{{ stats.products }}</strong><small class="tk-muted">الموجودة على Flask</small></div>
+  <div class="tk-card tk-stat"><span>الطلبات</span><strong>{{ stats.orders }}</strong><small class="tk-muted">إجمالي الطلبات</small></div>
+  <div class="tk-card tk-stat"><span>قيد المتابعة</span><strong>{{ stats.pending }}</strong><small class="tk-muted">تحتاج إجراء</small></div>
+</div>
+<div class="tk-two" style="margin-top:14px">
+  <section class="tk-card"><div class="tk-actions" style="justify-content:space-between"><h2 style="margin:0;font-size:1rem">آخر الطلبات</h2><a class="btn ghost" href="{{ url_for('takhfid_admin_v2.orders') }}">كل الطلبات</a></div><div class="tk-table-wrap"><table class="tk-table"><thead><tr><th>الطلب</th><th>العميل</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead><tbody>{% for o in recent_orders %}<tr><td><strong>{{ o.orderNumber }}</strong><br><small class="tk-muted">{{ o.id }}</small></td><td>{{ o.customerName }}<br><small class="tk-muted">{{ o.customerPhone }}</small></td><td>{{ o.total }} {{ 'ر.س' if o.currency == 'SAR' else 'ر.ي' }}</td><td><span class="tk-badge">{{ o.status }}</span></td><td><a class="btn ghost" href="{{ url_for('takhfid_admin_v2.chat', order_id=o.id) }}">المحادثة</a></td></tr>{% else %}<tr><td colspan="5" class="tk-muted">لا توجد طلبات بعد.</td></tr>{% endfor %}</tbody></table></div></section>
+  <section class="tk-card"><h2 style="font-size:1rem;margin-top:0">إجراءات سريعة</h2><div class="tk-actions"><a class="btn primary" href="{{ url_for('takhfid_admin_v2.products') }}">＋ إضافة منتج</a><a class="btn ghost" href="{{ url_for('takhfid_admin_v2.orders') }}">🛒 مراجعة الطلبات</a><a class="btn ghost" href="{{ url_for('takhfid_admin_v2.customers') }}">👥 العملاء</a><a class="btn ghost" href="{{ url_for('takhfid_admin_v2.settings') }}">⚙️ إعدادات التطبيق</a></div><p class="tk-muted" style="margin-top:15px">هذه اللوحة تعمل مباشرة من Flask/SQLAlchemy ولا تعتمد على Firestore.</p></section>
+</div>
+{% endblock %}
