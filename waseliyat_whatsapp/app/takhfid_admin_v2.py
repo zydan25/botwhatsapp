@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import os
+import secrets
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required
+from werkzeug.utils import secure_filename
 
 from . import db
 from .models import AuditLog
@@ -16,6 +20,10 @@ from .takhfid_chat_v2 import TakhfidChatMessage, _public_message
 
 
 takhfid_admin_v2_bp = Blueprint("takhfid_admin_v2", __name__, url_prefix="/takhfid/admin")
+
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_IMAGE_SIZE = 8 * 1024 * 1024
+MEDIA_SUBDIRS = {"products", "banners", "campaigns", "categories", "general"}
 
 
 def _guard():
@@ -44,6 +52,40 @@ def _setting_json(key: str, default: Any):
 def _current_customer_id() -> int | None:
     customer = _current_customer()
     return customer.id if customer else None
+
+
+def _media_root() -> Path:
+    root = Path(current_app.instance_path) / "takhfid_uploads" / "media"
+    root.mkdir(parents=True, exist_ok=True)
+    for name in MEDIA_SUBDIRS:
+        (root / name).mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def _save_image(upload, kind: str) -> str:
+    if kind not in MEDIA_SUBDIRS:
+        raise ValueError("نوع الصورة غير صالح")
+    if not upload or not upload.filename:
+        raise ValueError("الصورة مطلوبة")
+    filename = secure_filename(upload.filename)
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise ValueError("صيغة الصورة غير مدعومة")
+    upload.seek(0, os.SEEK_END)
+    size = upload.tell()
+    upload.seek(0)
+    if size > MAX_IMAGE_SIZE:
+        raise ValueError("حجم الصورة يتجاوز 8MB")
+    stem = secrets.token_urlsafe(12).replace("-", "_")
+    final_name = f"{stem}{ext}"
+    upload.save(_media_root() / kind / final_name)
+    return url_for("takhfid_admin_v2.media_file", filename=f"{kind}/{final_name}", _external=True)
+
+
+@takhfid_admin_v2_bp.get("/media/<path:filename>")
+def media_file(filename: str):
+    # Product/content images are public because the storefront must be able to display them.
+    return send_from_directory(_media_root(), filename, max_age=60 * 60 * 24 * 30)
 
 
 @takhfid_admin_v2_bp.get("/")
@@ -94,8 +136,18 @@ def products():
             except ValueError:
                 flash("البيانات الإضافية ليست JSON صحيحة.", "danger")
                 return redirect(url_for("takhfid_admin_v2.products"))
+        image = request.files.get("image")
+        if image and image.filename:
+            try:
+                payload["image"] = _save_image(image, "products")
+            except ValueError as exc:
+                flash(str(exc), "danger")
+                return redirect(url_for("takhfid_admin_v2.products"))
         row = db.session.get(TakhfidProduct, product_id)
         if row:
+            old = dict(row.payload or {})
+            if "image" not in payload and old.get("image"):
+                payload["image"] = old["image"]
             row.payload = payload
             row.updated_at = datetime.now(timezone.utc)
         else:
@@ -240,6 +292,23 @@ def settings_save():
     db.session.commit()
     flash("تم حفظ إعدادات التخفيض.", "success")
     return redirect(url_for("takhfid_admin_v2.settings"))
+
+
+@takhfid_admin_v2_bp.post("/api/media/upload")
+@login_required
+def media_upload():
+    guard = _guard()
+    if guard:
+        return guard
+    kind = str(request.form.get("kind") or "general").strip()
+    upload = request.files.get("file")
+    try:
+        image_url = _save_image(upload, kind)
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+    db.session.add(AuditLog(user_id=current_user.id, action="takhfid.media.uploaded", details=image_url))
+    db.session.commit()
+    return jsonify({"success": True, "url": image_url})
 
 
 @takhfid_admin_v2_bp.get("/api/pricing")
