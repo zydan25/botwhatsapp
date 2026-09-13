@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="tk-admin">
+  <div class="tk-admin-head">
+    <div><span class="eyebrow">لوحة المتجر</span><h1>{{ title or 'إدارة التخفيض' }}</h1><p>إدارة كاملة من الخادم، مصممة للهاتف والكمبيوتر.</p></div>
+    <div class="tk-admin-actions"><a class="btn ghost" href="{{ url_for('takhfid_admin_v2.dashboard') }}">الرئيسية</a><a class="btn primary" href="{{ url_for('main.dashboard') }}">ربطيات</a></div>
+  </div>
+  <nav class="tk-tabs" aria-label="إدارة التخفيض">
+    <a href="{{ url_for('takhfid_admin_v2.dashboard') }}">📊 الملخص</a>
+    <a href="{{ url_for('takhfid_admin_v2.orders') }}">🛒 الطلبات</a>
+    <a href="{{ url_for('takhfid_admin_v2.products') }}">📦 المنتجات</a>
+    <a href="{{ url_for('takhfid_admin_v2.customers') }}">👥 العملاء</a>
+    <a href="{{ url_for('takhfid_admin_v2.settings') }}">⚙️ الإعدادات</a>
+  </nav>
+  {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-stack">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+  {% block tk_content %}{% endblock %}
+</div>
+<style>
+.tk-admin{width:min(1180px,100%);margin:0 auto 110px}.tk-admin-head{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;margin:10px 0 18px}.tk-admin-head h1{margin:4px 0;font-size:clamp(1.4rem,4vw,2.2rem)}.tk-admin-head p{margin:0;color:#667085;font-size:.86rem}.tk-admin-actions{display:flex;gap:8px;flex-wrap:wrap}.tk-tabs{display:flex;gap:8px;overflow:auto;padding:5px;margin-bottom:18px;position:sticky;top:8px;z-index:10;background:rgba(255,255,255,.9);backdrop-filter:blur(12px);border:1px solid #eee;border-radius:18px}.tk-tabs a{white-space:nowrap;text-decoration:none;padding:10px 13px;border-radius:13px;color:#475467;font-weight:800;font-size:.78rem}.tk-tabs a:hover{background:#f6f7fb;color:#8f1740}.tk-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.tk-card{background:#fff;border:1px solid #eaecf0;border-radius:22px;padding:16px;box-shadow:0 10px 30px rgba(16,24,40,.05)}.tk-stat strong{display:block;font-size:1.65rem;margin-top:5px}.tk-stat span{color:#667085;font-size:.76rem}.tk-table{width:100%;border-collapse:separate;border-spacing:0 8px}.tk-table th{font-size:.72rem;color:#667085;text-align:right;padding:7px}.tk-table td{background:#fff;padding:11px 9px;border-top:1px solid #eaecf0;border-bottom:1px solid #eaecf0;font-size:.8rem}.tk-table td:first-child{border-right:1px solid #eaecf0;border-radius:0 13px 13px 0}.tk-table td:last-child{border-left:1px solid #eaecf0;border-radius:13px 0 0 13px}.tk-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.tk-form .full{grid-column:1/-1}.tk-label{display:block;font-weight:800;font-size:.76rem;color:#344054;margin-bottom:5px}.tk-input,.tk-textarea,.tk-select{width:100%;box-sizing:border-box;border:1px solid #d0d5dd;border-radius:13px;padding:10px 11px;background:#fff;font:inherit;font-size:.82rem}.tk-textarea{min-height:110px;resize:vertical}.tk-actions{display:flex;gap:7px;flex-wrap:wrap}.tk-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#f4f3ff;color:#6941c6;font-size:.7rem;font-weight:800}.tk-danger{color:#b42318}.tk-muted{color:#667085;font-size:.76rem}.tk-two{display:grid;grid-template-columns:1.3fr .7fr;gap:14px}.tk-order-actions form{display:inline}.tk-chat{max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:8px}.tk-msg{max-width:82%;padding:10px 12px;border-radius:16px;background:#f2f4f7;font-size:.8rem}.tk-msg.admin{align-self:flex-start;background:#fff1f7}.tk-msg.customer{align-self:flex-end;background:#f0fdf4}.tk-msg img{max-width:100%;border-radius:12px;margin-bottom:6px}.tk-json{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;direction:ltr;text-align:left;min-height:160px}
+@media(max-width:900px){.tk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.tk-two{grid-template-columns:1fr}.tk-table-wrap{overflow:auto}.tk-table{min-width:760px}}
+@media(max-width:640px){.tk-admin{margin-bottom:96px}.tk-admin-head{flex-direction:column}.tk-tabs{top:4px}.tk-grid{grid-template-columns:1fr 1fr}.tk-form{grid-template-columns:1fr}.tk-form .full{grid-column:auto}.tk-card{border-radius:18px;padding:13px}.tk-table{min-width:700px}.tk-admin-head .btn{font-size:.76rem}}
+</style>
+{% endblock %}
