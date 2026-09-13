@@ -29,6 +29,7 @@
   <nav class="bottom-nav" aria-label="التنقل">
     <a href="{{ url_for('main.dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'main.dashboard' else '' }}"><span>⌂</span><small>الرئيسية</small></a>
     <a href="{{ url_for('main.session_new') }}" class="nav-item {{ 'active' if request.endpoint == 'main.session_new' else '' }}"><span>＋</span><small>جلسة</small></a>
+    <a href="{{ url_for('takhfid.dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'takhfid.dashboard' else '' }}"><span>٪</span><small>التخفيض</small></a>
     <a href="{{ url_for('main.api_guide') }}" class="nav-item {{ 'active' if request.endpoint == 'main.api_guide' else '' }}"><span>{ }</span><small>API</small></a>
     <a href="{{ url_for('auth.account_settings') }}" class="nav-item {{ 'active' if request.endpoint == 'auth.account_settings' else '' }}"><span>⚙</span><small>الإعدادات</small></a>
   </nav>
