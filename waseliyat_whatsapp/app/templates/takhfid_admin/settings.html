@@ -1,6 +1,105 @@
 {% extends 'base.html' %}
 {% block content %}
-<section class="dashboard-head"><div><span class="eyebrow">Takhfid Admin</span><h1>الإعدادات</h1><p>التسعير، تكامل واتساب، ومحتوى واجهة المتجر.</p></div><a class="btn ghost" href="{{ url_for('takhfid_admin_v2.dashboard') }}">لوحة الإدارة</a></section>
-<div class="card" style="margin-bottom:16px"><h3 style="margin-top:0">التكاملات</h3><form method="post" class="form-stack"><label>جلسة WhatsApp<input name="whatsappSession" value="{{ integration.whatsappSession }}"></label><label>أرقام الإدارة<input name="adminPhones" value="{{ integration.adminPhones }}" placeholder="9677...,9677..."></label><label>المحتوى banners JSON<textarea name="banners" rows="4">{{ content.banners|tojson(ensure_ascii=False) }}</textarea></label><label>المحتوى campaigns JSON<textarea name="campaigns" rows="4">{{ content.campaigns|tojson(ensure_ascii=False) }}</textarea></label><label>المحتوى categories JSON<textarea name="categories" rows="4">{{ content.categories|tojson(ensure_ascii=False) }}</textarea></label><button class="btn primary" type="submit">حفظ الإعدادات والمحتوى</button></form></div>
-<div class="card"><h3 style="margin-top:0">أسعار المحافظات</h3><div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:760px"><thead><tr><th style="text-align:right;padding:9px">المحافظة</th><th style="text-align:right;padding:9px">SAR/YER</th><th style="text-align:right;padding:9px">USD/YER</th><th style="text-align:right;padding:9px">الزيادة%</th><th style="text-align:right;padding:9px">التوصيل</th></tr></thead><tbody>{% for name,p in pricing.items() %}<tr><td style="padding:9px;border-top:1px solid var(--line)">{{ name }}</td><td style="padding:9px;border-top:1px solid var(--line)">{{ p.sarToYerRate }}</td><td style="padding:9px;border-top:1px solid var(--line)">{{ p.usdToYerRate or 0 }}</td><td style="padding:9px;border-top:1px solid var(--line)">{{ p.markupValue }}</td><td style="padding:9px;border-top:1px solid var(--line)">{{ p.deliveryFee }}</td></tr>{% endfor %}</tbody></table></div></div>
+<section class="dashboard-head">
+  <div><span class="eyebrow">Takhfid Admin</span><h1>مركز إدارة المتجر</h1><p>التكاملات، التسعير، صور المتجر، البنرات، الحملات والتصنيفات من مكان واحد.</p></div>
+  <a class="btn ghost" href="{{ url_for('takhfid_admin_v2.dashboard') }}">لوحة الإدارة</a>
+</section>
+
+<div class="admin-tabs">
+  <a class="active" href="#general">⚙️ عام</a><a href="#pricing">💰 التسعير</a><a href="#banners">🖼️ البنرات</a><a href="#campaigns">🔥 الحملات</a><a href="#categories">🗂️ التصنيفات</a>
+</div>
+
+<section id="general" class="card settings-card">
+  <div class="card-head"><div><h2>الإعدادات العامة</h2><p>الإعدادات التي يعتمد عليها تسجيل الدخول وواتساب والإدارة.</p></div><span class="badge success">Flask</span></div>
+  <form method="post" class="settings-form">
+    <label class="field"><span>جلسة WhatsApp المستخدمة للـ OTP</span><input name="whatsappSession" value="{{ integration.whatsappSession }}" placeholder="basheer"></label>
+    <label class="field"><span>أرقام الإدارة</span><input name="adminPhones" value="{{ integration.adminPhones }}" placeholder="9677XXXXXXX,9677YYYYYYY"></label>
+    <div class="notice">🔐 سر OTP والتكاملات السرية تُدار من خلال إعدادات الخادم ولا يتم عرضها هنا كنص مكشوف.</div>
+    <div class="form-actions"><button class="btn primary" type="submit">حفظ الإعدادات العامة</button></div>
+    <input type="hidden" name="banners" id="banners-json" value='{{ content.banners|tojson|forceescape }}'>
+    <input type="hidden" name="campaigns" id="campaigns-json" value='{{ content.campaigns|tojson|forceescape }}'>
+    <input type="hidden" name="categories" id="categories-json" value='{{ content.categories|tojson|forceescape }}'>
+  </form>
+</section>
+
+<section id="pricing" class="card settings-card">
+  <div class="card-head"><div><h2>التسعير حسب المحافظة</h2><p>عدّل سعر الصرف والزيادة ورسوم التوصيل ثم احفظ الكل.</p></div></div>
+  <div class="pricing-table-wrap"><table class="pricing-table"><thead><tr><th>المحافظة</th><th>المنطقة</th><th>SAR/YER</th><th>USD/YER</th><th>الزيادة %</th><th>التوصيل</th><th></th></tr></thead><tbody>
+  {% for name,p in pricing.items() %}<tr data-governorate="{{ name }}"><td><strong>{{ name }}</strong></td><td>{{ 'جنوب' if p.region == 'south' else 'شمال' }}</td><td><input data-f="sarToYerRate" value="{{ p.sarToYerRate }}" type="number" min="0" step="0.01"></td><td><input data-f="usdToYerRate" value="{{ p.usdToYerRate or 0 }}" type="number" min="0" step="0.01"></td><td><input data-f="markupValue" value="{{ p.markupValue }}" type="number" min="0" step="0.1"></td><td><input data-f="deliveryFee" value="{{ p.deliveryFee }}" type="number" min="0" step="1"></td><td><button type="button" class="btn ghost price-save">حفظ</button></td></tr>{% endfor %}
+  </tbody></table></div><div id="pricing-result" class="result-line"></div>
+</section>
+
+{% for kind,title,subtitle in [('banners','البنرات الرئيسية','صور العروض الظاهرة أعلى واجهة المتجر'),('campaigns','الحملات والعروض','صور العروض الموسمية والعروض المميزة'),('categories','التصنيفات','صور وأيقونات التصنيفات التي تظهر للعملاء')] %}
+<section id="{{ kind }}" class="card settings-card content-manager" data-kind="{{ kind }}">
+  <div class="card-head"><div><h2>{{ title }}</h2><p>{{ subtitle }}</p></div><span class="badge">رفع صور مباشر</span></div>
+  <div class="content-add">
+    <label class="field"><span>العنوان</span><input class="item-title" placeholder="عنوان العنصر"></label>
+    <label class="field"><span>الوصف</span><input class="item-subtitle" placeholder="وصف مختصر اختياري"></label>
+    <label class="field"><span>النص/الاسم الداخلي</span><input class="item-name" placeholder="اسم مختصر"></label>
+    <label class="upload-box small-upload"><input class="item-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><div class="upload-icon">＋</div><strong>رفع صورة</strong><small>بدون روابط خارجية</small></label>
+    <div class="image-preview-line"><img class="item-preview hidden" alt=""><span class="upload-state">لم يتم اختيار صورة</span></div>
+    <label class="field"><span>الرابط عند الضغط (اختياري)</span><input class="item-link" placeholder="مثال: /products/category/... "></label>
+    <button type="button" class="btn primary add-item">إضافة {{ title }}</button>
+  </div>
+  <div class="items-list"></div>
+</section>
+{% endfor %}
+
+<style>
+.admin-tabs{position:sticky;top:64px;z-index:10;display:flex;gap:7px;overflow:auto;padding:8px 2px;margin-bottom:14px;background:rgba(247,248,252,.88);backdrop-filter:blur(14px)}.admin-tabs a{white-space:nowrap;padding:9px 13px;border-radius:12px;background:#fff;border:1px solid var(--line);font-size:10px;color:var(--muted)}.admin-tabs a.active{background:var(--wine);border-color:var(--wine);color:#fff}.settings-card{margin-bottom:16px}.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:18px}.card-head h2{margin:0;font-size:18px}.card-head p{margin:3px 0 0;color:var(--muted);font-size:11px}.settings-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.settings-form .notice,.settings-form .form-actions{grid-column:1/-1}.notice{padding:12px 14px;border-radius:14px;background:#fff8eb;color:#7b5b25;font-size:11px;border:1px solid #f1dfb9}.pricing-table-wrap{overflow:auto}.pricing-table{width:100%;min-width:900px;border-collapse:separate;border-spacing:0 7px;font-size:10px}.pricing-table th{padding:4px 8px;color:var(--muted);text-align:right}.pricing-table td{padding:7px 8px;background:var(--soft)}.pricing-table td:first-child{border-radius:12px 0 0 12px}.pricing-table td:last-child{border-radius:0 12px 12px 0}.pricing-table input{width:100%;min-width:90px;border:1px solid var(--line);border-radius:9px;padding:8px;background:#fff}.result-line{font-size:11px;color:var(--success);min-height:20px;margin-top:8px}.content-add{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:14px;background:var(--soft);border-radius:18px}.small-upload{display:grid;min-height:115px;margin:0}.small-upload .upload-icon{width:40px;height:40px;font-size:22px}.image-preview-line{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);padding:8px;border-radius:14px}.item-preview{width:62px;height:62px;object-fit:cover;border-radius:10px}.image-preview-line .upload-state{font-size:10px;color:var(--muted)}.hidden{display:none}.content-manager .items-list{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:15px}.content-item{overflow:hidden;border:1px solid var(--line);background:#fff;border-radius:18px}.content-item img{width:100%;aspect-ratio:1.7;object-fit:cover;background:var(--soft)}.content-item-body{padding:11px}.content-item h3{font-size:13px;margin:0}.content-item p{font-size:10px;color:var(--muted);margin:3px 0}.content-actions{display:flex;gap:6px;margin-top:8px}.content-actions button{flex:1}.empty-items{grid-column:1/-1;padding:25px;text-align:center;border:1px dashed #d2c5ca;border-radius:16px;color:var(--muted);font-size:11px}@media(max-width:800px){.settings-form,.content-add{grid-template-columns:1fr}.content-manager .items-list{grid-template-columns:repeat(2,1fr)}}@media(max-width:520px){.content-manager .items-list{grid-template-columns:1fr}.admin-tabs{top:58px}.dashboard-head{align-items:flex-start}}
+</style>
+
+<script>
+(() => {
+  const initial = {
+    banners: {{ content.banners|tojson }},
+    campaigns: {{ content.campaigns|tojson }},
+    categories: {{ content.categories|tojson }}
+  };
+  const state = JSON.parse(JSON.stringify(initial));
+  const saveState = () => {
+    Object.keys(state).forEach(k => { const el=document.getElementById(k+'-json'); if(el) el.value=JSON.stringify(state[k]); });
+  };
+  const upload = async (kind, file) => {
+    if (!file) return '';
+    if (file.size > 8*1024*1024) throw new Error('حجم الصورة يتجاوز 8MB');
+    const fd = new FormData(); fd.append('kind', kind); fd.append('file', file);
+    const r = await fetch('{{ url_for("takhfid_admin_v2.media_upload") }}', {method:'POST', body:fd});
+    const data = await r.json(); if (!r.ok || !data.success) throw new Error(data.error || 'فشل رفع الصورة');
+    return data.url;
+  };
+  document.querySelectorAll('.content-manager').forEach(section => {
+    const kind=section.dataset.kind, file=section.querySelector('.item-file'), preview=section.querySelector('.item-preview'), stateText=section.querySelector('.upload-state'), list=section.querySelector('.items-list');
+    const render = () => {
+      list.innerHTML='';
+      if (!state[kind].length) { list.innerHTML='<div class="empty-items">لا توجد عناصر بعد. أضف أول عنصر من النموذج.</div>'; return; }
+      state[kind].forEach((item,index) => {
+        const card=document.createElement('article'); card.className='content-item';
+        card.innerHTML=`${item.image ? `<img src="${item.image}" alt="">` : '<div style="aspect-ratio:1.7;display:grid;place-items:center;background:var(--soft);font-size:30px">🖼️</div>'}<div class="content-item-body"><h3>${escapeHtml(item.title || item.name || 'عنصر')}</h3><p>${escapeHtml(item.subtitle || '')}</p><p>${item.enabled === false ? 'غير مفعل' : 'مفعل'}</p><div class="content-actions"><button class="btn ghost toggle" type="button">${item.enabled === false?'تفعيل':'تعطيل'}</button><button class="btn danger remove" type="button">حذف</button></div></div>`;
+        card.querySelector('.remove').onclick=()=>{state[kind].splice(index,1);saveState();render();};
+        card.querySelector('.toggle').onclick=()=>{item.enabled=item.enabled===false;saveState();render();};
+        list.appendChild(card);
+      });
+    };
+    file.addEventListener('change',()=>{const f=file.files?.[0];if(!f)return;preview.src=URL.createObjectURL(f);preview.classList.remove('hidden');stateText.textContent=f.name;});
+    section.querySelector('.add-item').addEventListener('click', async ()=>{
+      const button=section.querySelector('.add-item'); button.disabled=true;
+      try {
+        const image=await upload(kind,file.files?.[0]);
+        const item={title:section.querySelector('.item-title').value.trim(),subtitle:section.querySelector('.item-subtitle').value.trim(),name:section.querySelector('.item-name').value.trim(),image,link:section.querySelector('.item-link').value.trim(),enabled:true};
+        if (!item.title && !item.name && !item.image) throw new Error('أدخل عنوانًا أو اسمًا أو صورة');
+        state[kind].push(item); saveState(); render();
+        section.querySelectorAll('input:not(.item-file)').forEach(x=>x.value=''); file.value=''; preview.classList.add('hidden'); stateText.textContent='لم يتم اختيار صورة';
+      } catch(e){alert(e.message);} finally {button.disabled=false;}
+    });
+    render();
+  });
+  document.querySelectorAll('.price-save').forEach(btn=>btn.addEventListener('click',async()=>{
+    const row=btn.closest('tr'), governorate=row.dataset.governorate, body={}; row.querySelectorAll('[data-f]').forEach(x=>body[x.dataset.f]=Number(x.value||0)); btn.disabled=true;
+    try {const r=await fetch(`/takhfid/admin/api/pricing/${encodeURIComponent(governorate)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||'فشل الحفظ');document.getElementById('pricing-result').textContent=`تم حفظ ${governorate} ✅`; } catch(e){document.getElementById('pricing-result').textContent=e.message;} finally{btn.disabled=false;}
+  }));
+  function escapeHtml(value){return String(value).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+  saveState();
+})();
+</script>
 {% endblock %}
