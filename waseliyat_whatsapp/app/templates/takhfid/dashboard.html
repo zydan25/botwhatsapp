@@ -12,10 +12,11 @@
 <div class="session-grid">
   <article class="session-card">
     <div class="session-top"><div class="session-brand"><span class="mini-icon">🔐</span><div><h3>OTP وتسجيل الدخول</h3><small>الخدمة المرتبطة بمتجر التخفيض</small></div></div><span class="status-dot connected">جاهز</span></div>
-    <div class="session-stats"><div><small>جلسة واتساب</small><strong>{{ config.get('TAKHFIID_WHATSAPP_SESSION', 'basheer') }}</strong></div><div><small>صلاحية الرمز</small><strong>5 د</strong></div><div><small>إعادة الإرسال</small><strong>60ث</strong></div></div>
-    <div class="session-actions"><a class="btn primary" href="{{ url_for('main.session_detail', session_id=1) }}">فتح إدارة الجلسات</a></div>
+    <div class="session-stats"><div><small>جلسة واتساب</small><strong>{{ session.name }}</strong></div><div><small>الحالة</small><strong>{{ session.status }}</strong></div><div><small>رمز OTP</small><strong>5 د</strong></div></div>
+    <div class="session-actions"><a class="btn primary" href="{{ url_for('main.session_detail', session_id=session.id) }}">فتح الجلسة</a><a class="btn ghost" href="{{ url_for('main.api_guide') }}">دليل API</a></div>
   </article>
 
+  {% if can_manage %}
   <article class="session-card">
     <div class="session-top"><div class="session-brand"><span class="mini-icon">💰</span><div><h3>التسعير حسب المحافظة</h3><small>تعديل الصرف والزيادة والتوصيل</small></div></div><span class="status-dot connected">نشط</span></div>
     <div class="table-wrap">
@@ -39,19 +40,23 @@
   </article>
 
   <article class="session-card">
-    <div class="session-top"><div class="session-brand"><span class="mini-icon">⚙️</span><div><h3>إعدادات Takhfid</h3><small>قيم الخادم المخصصة للمشروع</small></div></div></div>
+    <div class="session-top"><div class="session-brand"><span class="mini-icon">⚙️</span><div><h3>إعدادات Takhfid</h3><small>جلسة واتساب، أرقام الإدارة، سر OTP</small></div></div></div>
     <div class="form-stack">
-      <label>جلسة WhatsApp المستخدمة للـOTP<input id="whatsapp_session" value="{{ config.get('TAKHFIID_WHATSAPP_SESSION', 'basheer') }}"></label>
+      <label>جلسة WhatsApp المستخدمة للـOTP<input id="whatsapp_session" value="{{ session.name }}"></label>
       <label>رقم/أرقام الإدارة<input id="admin_phones" placeholder="9677XXXXXXX,9677YYYYYYY"></label>
       <label>سر Hash للـOTP<input id="otp_hash_secret" type="password" placeholder="اتركه فارغًا للاحتفاظ بالقيمة الحالية"></label>
     </div>
     <div class="session-actions"><button class="btn primary" id="save-settings">حفظ الإعدادات</button><span id="settings-result" class="muted"></span></div>
   </article>
+  {% else %}
+    <article class="session-card"><div class="empty-card"><div class="soft-icon big">🔒</div><h3>صلاحيات الإدارة مطلوبة</h3><p>حسابك يستطيع استخدام لوحة البوت، لكن إعدادات Takhfid الحساسة متاحة للمدير المصرح فقط.</p></div></article>
+  {% endif %}
 </div>
 
 <style>
 .table-wrap{overflow:auto;margin-top:12px}.data-table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:12px;min-width:720px}.data-table th{text-align:right;color:#777;padding:0 8px}.data-table td{background:#faf7f8;padding:8px}.data-table tr td:first-child{border-radius:10px 0 0 10px}.data-table tr td:last-child{border-radius:0 10px 10px 0}.data-table input,.form-stack input{width:100%;padding:9px;border:1px solid #eadfe4;border-radius:10px;background:#fff;box-sizing:border-box}.form-stack{display:grid;gap:12px;margin-top:14px}.form-stack label{font-size:12px;font-weight:700;color:#4a3b42}.form-stack input{display:block;margin-top:6px;font-weight:400}.muted{font-size:12px;color:#777}
 </style>
+{% if can_manage %}
 <script>
 (() => {
   const savePricing = document.getElementById('save-pricing');
@@ -92,4 +97,5 @@
   });
 })();
 </script>
+{% endif %}
 {% endblock %}
