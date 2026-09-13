@@ -26,7 +26,12 @@ class TakhfidSetting(db.Model):
     key = db.Column(db.String(120), nullable=False, unique=True, index=True)
     value = db.Column(db.Text, default="", nullable=False)
     secret = db.Column(db.Boolean, default=False, nullable=False)
-    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
 
 class TakhfidOtp(db.Model):
@@ -36,7 +41,11 @@ class TakhfidOtp(db.Model):
     code_hash = db.Column(db.String(128), nullable=False)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     attempts = db.Column(db.Integer, default=0, nullable=False)
-    sent_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    sent_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     __table_args__ = (UniqueConstraint("phone", name="uq_takhfid_otp_phone"),)
 
 
@@ -95,8 +104,12 @@ def _set_setting(key: str, value: str, secret: bool = False) -> None:
 def _admin_user() -> bool:
     if not current_user.is_authenticated:
         return False
-    allowed = os.getenv("TAKHFIID_ADMIN_USERS", os.getenv("ADMIN_USERNAME", "")).split(",")
-    return current_user.username in {name.strip() for name in allowed if name.strip()}
+    configured = []
+    configured.extend(os.getenv("TAKHFIID_ADMIN_USERS", "").split(","))
+    configured.extend(os.getenv("ADMIN_USERNAME", "zydan").split(","))
+    configured = {str(name).strip().casefold() for name in configured if str(name).strip()}
+    username = str(getattr(current_user, "username", "")).strip().casefold()
+    return bool(username and username in configured)
 
 
 def _otp_secret() -> str:
@@ -184,7 +197,10 @@ def send_otp():
     if not result.get("ok"):
         return jsonify({"success": False, "error": result.get("error") or "تعذر إرسال رمز التحقق"}), 502
     if old:
-        old.code_hash = digest; old.expires_at = now + timedelta(minutes=5); old.attempts = 0; old.sent_at = now
+        old.code_hash = digest
+        old.expires_at = now + timedelta(minutes=5)
+        old.attempts = 0
+        old.sent_at = now
     else:
         db.session.add(TakhfidOtp(phone=phone, code_hash=digest, expires_at=now + timedelta(minutes=5), attempts=0, sent_at=now))
     db.session.commit()
@@ -194,7 +210,8 @@ def send_otp():
 @takhfid_bp.post("/api/auth/verify-otp")
 def verify_otp():
     payload = request.get_json(silent=True) or request.form
-    phone = normalize_phone(payload.get("phoneNumber")); code = str(payload.get("otp") or "").strip()
+    phone = normalize_phone(payload.get("phoneNumber"))
+    code = str(payload.get("otp") or "").strip()
     if not (phone.isdigit() and 8 <= len(phone) <= 15 and code.isdigit() and len(code) == 6):
         return jsonify({"success": False, "error": "بيانات التحقق غير صالحة"}), 400
     row = TakhfidOtp.query.filter_by(phone=phone).first()
@@ -202,11 +219,17 @@ def verify_otp():
         return jsonify({"success": False, "error": "لا يوجد رمز نشط"}), 400
     now = datetime.now(timezone.utc)
     if row.expires_at < now:
-        db.session.delete(row); db.session.commit(); return jsonify({"success": False, "error": "انتهت صلاحية الرمز"}), 400
+        db.session.delete(row)
+        db.session.commit()
+        return jsonify({"success": False, "error": "انتهت صلاحية الرمز"}), 400
     if row.attempts >= 5:
-        db.session.delete(row); db.session.commit(); return jsonify({"success": False, "error": "تم تجاوز عدد المحاولات"}), 429
+        db.session.delete(row)
+        db.session.commit()
+        return jsonify({"success": False, "error": "تم تجاوز عدد المحاولات"}), 429
     if not hmac.compare_digest(row.code_hash, _hash_otp(phone, code)):
-        row.attempts += 1; db.session.commit(); return jsonify({"success": False, "error": "رمز التحقق غير صحيح"}), 401
+        row.attempts += 1
+        db.session.commit()
+        return jsonify({"success": False, "error": "رمز التحقق غير صحيح"}), 401
     try:
         firebase_auth = _firebase_auth()
         uid = f"usr_{phone}"
@@ -215,10 +238,12 @@ def verify_otp():
         except firebase_auth.UserNotFoundError:
             firebase_auth.create_user(uid=uid, phone_number=f"+{phone}")
         admin_numbers = {normalize_phone(x) for x in _setting("admin_phones", "").split(",") if normalize_phone(x)}
-        is_admin = phone in admin_numbers; role = "admin" if is_admin else "customer"
+        is_admin = phone in admin_numbers
+        role = "admin" if is_admin else "customer"
         firebase_auth.set_custom_user_claims(uid, {"admin": is_admin, "role": role})
         token = firebase_auth.create_custom_token(uid, {"admin": is_admin, "role": role})
-        db.session.delete(row); db.session.commit()
+        db.session.delete(row)
+        db.session.commit()
         return jsonify({"success": True, "customToken": token.decode() if isinstance(token, bytes) else token, "user": {"uid": uid, "phone": phone, "role": role, "isAdmin": is_admin}})
     except Exception as exc:
         current_app.logger.exception("Takhfid Firebase login failed")
@@ -239,11 +264,16 @@ def settings_get():
 def settings_save():
     if not _admin_user():
         return jsonify({"success": False, "error": "غير مصرح"}), 403
-    payload = request.get_json(silent=True) or {}; key = str(payload.get("key") or "").strip(); value = str(payload.get("value") or "").strip()
-    if not key or len(key) > 120:
-        return jsonify({"success": False, "error": "مفتاح الإعداد غير صالح"}), 400
-    secret = key in {"otp_hash_secret", "whatsapp_api_key", "whatsapp_api_token"}
-    _set_setting(key, value, secret=secret); db.session.commit()
+    payload = request.get_json(silent=True) or {}
+    key = str(payload.get("key") or "").strip()
+    value = str(payload.get("value") or "").strip()
+    allowed = {"whatsapp_session", "admin_phones", "otp_hash_secret"}
+    if key not in allowed:
+        return jsonify({"success": False, "error": "إعداد غير مسموح"}), 400
+    if key == "otp_hash_secret" and not value:
+        return jsonify({"success": False, "error": "سر OTP مطلوب"}), 400
+    _set_setting(key, value, key == "otp_hash_secret")
+    db.session.commit()
     return jsonify({"success": True})
 
 
@@ -253,11 +283,23 @@ def pricing_save(governorate: str):
     if not _admin_user():
         return jsonify({"success": False, "error": "غير مصرح"}), 403
     if governorate not in DEFAULT_PRICING:
-        return jsonify({"success": False, "error": "المحافظة غير معروفة"}), 404
-    payload = request.get_json(silent=True) or {}; current = {**DEFAULT_PRICING[governorate], **payload}
-    for key in ("sarToYerRate", "usdToYerRate", "markupValue", "deliveryFee"):
-        try: current[key] = max(0, float(current.get(key, DEFAULT_PRICING[governorate][key])))
-        except (TypeError, ValueError): current[key] = DEFAULT_PRICING[governorate][key]
-    current["freeDeliveryIncluded"] = bool(current.get("freeDeliveryIncluded", False))
-    _set_setting(f"pricing:{governorate}", json.dumps(current, ensure_ascii=False), secret=False); db.session.commit()
-    return jsonify({"success": True, "pricing": current})
+        return jsonify({"success": False, "error": "محافظة غير معروفة"}), 404
+    payload = request.get_json(silent=True) or {}
+    current = DEFAULT_PRICING[governorate].copy()
+    raw = _setting(f"pricing:{governorate}")
+    if raw:
+        try:
+            current.update(json.loads(raw))
+        except (TypeError, ValueError):
+            pass
+    for field in ("sarToYerRate", "usdToYerRate", "markupValue", "deliveryFee"):
+        if field in payload:
+            number = float(payload[field])
+            if number < 0:
+                return jsonify({"success": False, "error": f"قيمة سالبة غير مسموحة: {field}"}), 400
+            current[field] = number
+    if "freeDeliveryIncluded" in payload:
+        current["freeDeliveryIncluded"] = bool(payload["freeDeliveryIncluded"])
+    _set_setting(f"pricing:{governorate}", json.dumps(current, ensure_ascii=False))
+    db.session.commit()
+    return jsonify({"success": True, "governorate": governorate, "pricing": current})
