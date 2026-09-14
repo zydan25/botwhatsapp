@@ -14,10 +14,9 @@ from flask_sqlalchemy import SQLAlchemy
 
 load_dotenv()
 
-
 db = SQLAlchemy()
 login_manager = LoginManager()
-socketio = SocketIO(async_mode='eventlet', cors_allowed_origins='*', manage_session=False)
+socketio = SocketIO(async_mode='eventlet', manage_session=False)
 
 
 def utcnow():
@@ -50,12 +49,13 @@ def create_app():
         TAKHFIID_WHATSAPP_SESSION=os.getenv('TAKHFIID_WHATSAPP_SESSION', 'basheer'),
         TAKHFIID_ALLOWED_ORIGIN=os.getenv('TAKHFIID_ALLOWED_ORIGIN', 'https://zydan25.github.io'),
     )
+    socket_origins = os.getenv('SOCKETIO_ALLOWED_ORIGINS', '*')
 
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'يرجى تسجيل الدخول أولاً.'
-    socketio.init_app(app)
+    socketio.init_app(app, cors_allowed_origins=socket_origins)
 
     @app.before_request
     def handle_takhfid_preflight():
@@ -104,7 +104,7 @@ def _seed_data(app):
     from .models import User, Contract, WhatsAppSession
     from werkzeug.security import generate_password_hash
 
-    username = os.getenv('ADMIN_USERNAME', 'zydan').strip()
+    username = os.getenv('ADMIN_USERNAME', 'zydan').strip() or 'admin'
     password = os.getenv('ADMIN_PASSWORD')
     if not password:
         password = secrets.token_urlsafe(24)
@@ -119,27 +119,12 @@ def _seed_data(app):
     version = app.config['CONTRACT_VERSION']
     contract = Contract.query.filter_by(version=version).first()
     if not contract:
-        contract = Contract(
-            version=version,
-            title='عقد استخدام ربطيات واتساب',
-            body=(
-                'باستخدام المنصة أقر بأنني مسؤول عن أرقام واتساب والحسابات وواجهات API التي أربطها، '
-                'وألتزم بالأنظمة والقوانين وشروط واتساب وبحماية مفاتيح الربط وعدم إساءة استخدام الإرسال.'
-            ),
-            required=True,
-        )
+        contract = Contract(version=version, title='عقد استخدام ربطيات واتساب', body='باستخدام المنصة أقر بأنني مسؤول عن أرقام واتساب والحسابات وواجهات API التي أربطها، وألتزم بالأنظمة والقوانين وشروط واتساب وبحماية مفاتيح الربط وعدم إساءة استخدام الإرسال.', required=True)
         db.session.add(contract)
     db.session.commit()
 
     if not WhatsAppSession.query.first():
-        session = WhatsAppSession(
-            name='basheer',
-            display_name='الجلسة الأولى',
-            api_base_url=app.config['WHATSAPP_API_BASE_URL'],
-            webhook_base_url='',
-            active=True,
-        )
-        db.session.add(session)
+        db.session.add(WhatsAppSession(name='basheer', display_name='الجلسة الأولى', api_base_url=app.config['WHATSAPP_API_BASE_URL'], webhook_base_url='', active=True))
         db.session.commit()
 
 
@@ -158,10 +143,8 @@ def _start_status_worker(app):
         while True:
             try:
                 with app.app_context():
-                    sessions = WhatsAppSession.query.filter_by(active=True).all()
-                    for session in sessions:
-                        client = WhatsAppClient(session)
-                        result = client.status(timeout=7)
+                    for session in WhatsAppSession.query.filter_by(active=True).all():
+                        result = WhatsAppClient(session).status(timeout=7)
                         if result.get('ok'):
                             session.update_from_status(result['data'])
                             db.session.commit()
@@ -170,5 +153,4 @@ def _start_status_worker(app):
                 app.logger.exception('status worker error: %s', exc)
             time.sleep(app.config['STATUS_POLL_SECONDS'])
 
-    t = threading.Thread(target=worker, name='waseliyat-status-worker', daemon=True)
-    t.start()
+    threading.Thread(target=worker, name='waseliyat-status-worker', daemon=True).start()
