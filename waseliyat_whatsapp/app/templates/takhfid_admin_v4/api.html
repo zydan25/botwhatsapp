@@ -1,0 +1,18 @@
+{% extends 'takhfid_admin_v4/base.html' %}{% block tk_content %}<section class="tk-grid-2"><div class="tk-card"><h2>API V4</h2><p>هذه اللوحة تعمل على نفس طبقة V4 التي يستخدمها تطبيق العميل.</p><div class="tk-note">توكنات Bearer الحالية تبقى كما هي. لا يوجد تدوير مفاتيح عند استخدام لوحة الإدارة.</div><h3 style="margin-top:16px">نقاط عامة</h3><div class="tk-code"><pre>GET /takhfid/api/v4/health
+GET /takhfid/api/v4/store
+GET /takhfid/api/v4/content
+GET /takhfid/api/v4/categories
+GET /takhfid/api/v4/pricing
+GET /takhfid/api/v4/products
+GET /takhfid/api/v4/products/&lt;id&gt;</pre></div><h3>الطلبات</h3><div class="tk-code"><pre>POST /takhfid/api/v4/orders
+GET  /takhfid/api/v4/orders
+GET  /takhfid/api/v4/orders/&lt;id&gt;
+PATCH /takhfid/api/v4/orders/&lt;id&gt;/status
+PATCH /takhfid/api/v4/orders/&lt;id&gt;/payment</pre></div></div><div class="tk-card"><h2>إدارة المنتجات والمحتوى</h2><div class="tk-code"><pre>POST /takhfid/api/v4/admin/products
+PUT /takhfid/api/v4/admin/products/&lt;id&gt;
+DELETE /takhfid/api/v4/admin/products/&lt;id&gt;
+POST /takhfid/api/v4/admin/products/bulk
+PUT /takhfid/api/v4/admin/store/settings
+PUT /takhfid/api/v4/admin/content
+PUT /takhfid/api/v4/admin/pricing/&lt;governorate&gt;
+POST /takhfid/api/v4/admin/media/upload</pre></div><p>الصور في لوحة الويب تُرفع كملفات، ثم تحفظ روابط الخدمة داخل بيانات V4. هذا يلغي الحاجة لإدخال روابط صور يدويًا من لوحة الإدارة.</p><h3>اختبار سريع</h3><pre class="tk-code">curl -s http://127.0.0.1:3333/takhfid/api/v4/health</pre></div></section>{% endblock %}
