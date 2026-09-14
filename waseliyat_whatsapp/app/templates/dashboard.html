@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% block content %}
-<section class="dashboard-head"><div><span class="eyebrow">مساحة العمل</span><h1>أهلًا {{ current_user.username }} 👋</h1><p>كل جلساتك ورسائلك من شاشة واحدة، مع تحديثات مباشرة.</p></div><a class="btn primary" href="{{ url_for('main.session_new') }}">＋ إضافة جلسة</a></section>
+<section class="dashboard-head"><div><span class="eyebrow">مساحة العمل</span><h1>أهلًا {{ current_user.username }} 👋</h1><p>كل جلساتك ورسائلك من شاشة واحدة، مع تحديثات مباشرة.</p></div><div class="dashboard-head-actions"><a class="btn primary" href="{{ url_for('main.session_new') }}">＋ إضافة جلسة</a><a class="btn ghost" href="{{ url_for('takhfid_admin_v4.dashboard') }}">🛍 إدارة التخفيض</a></div></section>
 <div id="session-grid" class="session-grid">
 {% for s in sessions %}
 <article class="session-card" data-session-id="{{ s.id }}" data-status="{{ s.status }}">
