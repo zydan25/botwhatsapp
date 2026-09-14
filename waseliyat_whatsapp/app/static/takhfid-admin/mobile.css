@@ -1,0 +1,36 @@
+/* V4 mobile polish + blue visual theme. Scope: Takhfid admin only. */
+:root{--tk-primary:#1769e0;--tk-primary2:#2f80ed}
+.tk-brand-mark{background:linear-gradient(135deg,#2f80ed,#1769e0)!important}
+.tk-btn-primary{background:linear-gradient(135deg,var(--tk-primary2),var(--tk-primary))!important}
+.tk-input:focus,.tk-select:focus,.tk-textarea:focus{border-color:#6ea8fe!important;box-shadow:0 0 0 3px rgba(23,105,224,.12)!important}
+.tk-sidebar-overlay,.tk-overlay{display:none}
+.tk-icon-btn{display:grid;place-items:center;width:38px;height:38px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#202b3f;color:#fff;font:inherit;cursor:pointer}
+@media(max-width:760px){
+  .tk-sidebar{inset:10px 10px 10px auto!important;transform:translateX(120%)!important;width:min(292px,calc(100vw - 20px))!important;padding:12px!important;border-radius:20px!important}
+  .tk-sidebar.open{transform:translateX(0)!important}
+  .tk-overlay{position:fixed!important;inset:0!important;background:rgba(5,10,20,.44)!important;z-index:70!important;backdrop-filter:blur(3px);display:block!important;opacity:0;pointer-events:none;transition:opacity .2s ease}
+  .tk-overlay.open{opacity:1;pointer-events:auto}
+  .tk-main{padding:8px 10px 28px!important}
+  .tk-topbar{gap:8px!important;margin-bottom:10px!important;padding:7px 0!important}
+  .tk-topbar h1{font-size:1.15rem!important;line-height:1.35}
+  .tk-eyebrow{font-size:.62rem!important}
+  .tk-top-actions{margin-inline-start:auto}
+  .tk-top-actions .tk-btn{padding:8px 10px!important;font-size:.73rem!important}
+  .tk-menu-btn{padding:8px 10px!important;border-radius:12px!important;flex:0 0 auto}
+  .tk-card{padding:12px!important;border-radius:16px!important}
+  .tk-stat strong{font-size:1.45rem!important}
+  .tk-form{gap:9px!important}
+  .tk-input,.tk-select,.tk-textarea{padding:9px 10px!important;font-size:.8rem!important;border-radius:11px!important}
+  .tk-btn{min-height:40px;padding:9px 11px!important;border-radius:11px!important;font-size:.76rem!important}
+  .tk-actions{gap:6px!important}
+  .tk-toolbar{gap:8px!important;margin-bottom:9px!important}
+  .tk-search{min-width:100%!important;width:100%}
+  .tk-table-wrap{margin-inline:-2px}
+  .tk-table{min-width:610px!important;font-size:.74rem}
+  .tk-table th{font-size:.65rem;padding:5px 7px}
+  .tk-table td{padding:7px;font-size:.72rem}
+  .tk-image-grid{grid-template-columns:repeat(3,1fr)!important;gap:6px!important}
+  .tk-preview img{width:72px!important;height:72px!important}
+  .tk-sidebar-foot a{padding:8px 3px!important}
+}
+@media(min-width:761px){.tk-overlay{display:none!important}}
