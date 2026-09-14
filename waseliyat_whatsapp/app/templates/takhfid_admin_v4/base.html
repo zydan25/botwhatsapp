@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="manifest" href="{{ url_for('takhfid_admin_v4.manifest') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='takhfid-admin/admin.css') }}">
+<script defer src="{{ url_for('static', filename='takhfid-admin/admin.js') }}"></script>
+<div class="tk-shell" dir="rtl">
+  <div class="tk-overlay" data-sidebar-overlay></div>
+  <aside class="tk-sidebar" data-sidebar>
+    <div class="tk-brand"><div class="tk-brand-mark">ت</div><div><strong>التخفيض</strong><small>إدارة المتجر V4</small></div><button class="tk-icon-btn tk-mobile-only" type="button" data-sidebar-close aria-label="إغلاق">×</button></div>
+    <div class="tk-user"><span class="tk-avatar">{{ (tk_admin_user.username[:1] if tk_admin_user and tk_admin_user.username else 'م')|upper }}</span><div><strong>{{ tk_admin_user.username if tk_admin_user else 'مدير' }}</strong><small>مدير المتجر</small></div></div>
+    <nav class="tk-menu" aria-label="القائمة الرئيسية">
+      {% for endpoint, icon, label in tk_nav %}<a class="{{ 'active' if request.endpoint == 'takhfid_admin_v4.' ~ endpoint else '' }}" href="{{ url_for('takhfid_admin_v4.' ~ endpoint) }}"><span>{{ icon }}</span><span>{{ label }}</span></a>{% endfor %}
+    </nav>
+    <div class="tk-sidebar-foot"><a href="{{ url_for('main.dashboard') }}">↩ لوحة ربطيات</a><a href="{{ url_for('auth.logout') }}">تسجيل الخروج</a></div>
+  </aside>
+  <main class="tk-main">
+    <header class="tk-topbar"><button class="tk-menu-btn" type="button" data-sidebar-open aria-label="فتح القائمة">☰</button><div><span class="tk-eyebrow">لوحة إدارة V4</span><h1>{{ title or 'التخفيض' }}</h1></div><div class="tk-top-actions"><a class="tk-btn tk-btn-soft" href="{{ url_for('takhfid_api.store_config') if 'takhfid_api.store_config' in current_app.view_functions else url_for('takhfid_admin_v4.dashboard') }}">معاينة</a></div></header>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="tk-flashes">{% for category, message in messages %}<div class="tk-flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+    {% block tk_content %}{% endblock %}
+  </main>
+</div>
+{% endblock %}
