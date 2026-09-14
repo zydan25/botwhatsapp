@@ -14,7 +14,7 @@
     <div class="tk-sidebar-foot"><a href="{{ url_for('main.dashboard') }}">↩ لوحة ربطيات</a><a href="{{ url_for('auth.logout') }}">تسجيل الخروج</a></div>
   </aside>
   <main class="tk-main">
-    <header class="tk-topbar"><button class="tk-menu-btn" type="button" data-sidebar-open aria-label="فتح القائمة">☰</button><div><span class="tk-eyebrow">لوحة إدارة V4</span><h1>{{ title or 'التخفيض' }}</h1></div><div class="tk-top-actions"><a class="tk-btn tk-btn-soft" href="{{ url_for('takhfid_api.store_config') if 'takhfid_api.store_config' in current_app.view_functions else url_for('takhfid_admin_v4.dashboard') }}">معاينة</a></div></header>
+    <header class="tk-topbar"><button class="tk-menu-btn" type="button" data-sidebar-open aria-label="فتح القائمة">☰</button><div><span class="tk-eyebrow">لوحة إدارة V4</span><h1>{{ title or 'التخفيض' }}</h1></div><div class="tk-top-actions"><a class="tk-btn tk-btn-soft" href="{{ url_for('takhfid_admin_v4.dashboard') }}">معاينة</a></div></header>
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="tk-flashes">{% for category, message in messages %}<div class="tk-flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     {% block tk_content %}{% endblock %}
   </main>
