@@ -16,7 +16,6 @@
   <header class="topbar">
     <a href="{{ url_for('main.dashboard') }}" class="brand-inline"><span class="brand-mark"><img src="{{ url_for('static', filename='icons/icon.svg') }}" alt=""></span><span><strong>ربطيات</strong><small>واتساب</small></span></a>
     <div class="top-actions">
-      {% if request.endpoint and request.endpoint.startswith('takhfid_admin_v2.') %}<a class="btn ghost" href="{{ url_for('main.dashboard') }}">ربطيات</a>{% else %}<a class="btn ghost" href="{{ url_for('takhfid_admin_v2.dashboard') }}">إدارة التخفيض</a>{% endif %}
       <a class="icon-btn" href="{{ url_for('main.notifications') }}" aria-label="الإشعارات">⌁{% if unread %}<b>{{ unread }}</b>{% endif %}</a>
       <a class="avatar" href="{{ url_for('auth.account_settings') }}">{{ current_user.username[:1]|upper }}</a>
     </div>
@@ -27,7 +26,6 @@
   <nav class="bottom-nav" aria-label="التنقل">
     <a href="{{ url_for('main.dashboard') }}" class="nav-item {{ 'active' if request.endpoint == 'main.dashboard' else '' }}"><span>⌂</span><small>الرئيسية</small></a>
     <a href="{{ url_for('main.session_new') }}" class="nav-item {{ 'active' if request.endpoint == 'main.session_new' else '' }}"><span>＋</span><small>جلسة</small></a>
-    <a href="{{ url_for('takhfid_admin_v2.dashboard') }}" class="nav-item {{ 'active' if request.endpoint and request.endpoint.startswith('takhfid_admin_v2.') else '' }}"><span>٪</span><small>إدارة المتجر</small></a>
     <a href="{{ url_for('main.api_guide') }}" class="nav-item {{ 'active' if request.endpoint == 'main.api_guide' else '' }}"><span>{ }</span><small>API</small></a>
     <a href="{{ url_for('auth.account_settings') }}" class="nav-item {{ 'active' if request.endpoint == 'auth.account_settings' else '' }}"><span>⚙</span><small>الإعدادات</small></a>
   </nav>
