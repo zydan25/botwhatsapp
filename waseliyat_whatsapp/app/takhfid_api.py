@@ -22,15 +22,17 @@ from .models import WhatsAppSession
 
 takhfid_api_bp = Blueprint("takhfid_api", __name__, url_prefix="/takhfid")
 
-# ---------------------------------------------------------------------------
-# Canonical Takhfid models. These replace the old takhfid.py / v2 / v3 model
-# duplication. Legacy modules can remain temporarily for compatibility, but
-# this blueprint is the only one registered by the main Flask application.
-# ---------------------------------------------------------------------------
-
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 class TakhfidSetting(db.Model):
@@ -98,10 +100,6 @@ class TakhfidOrder(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
 
-# ---------------------------------------------------------------------------
-# Defaults / utilities
-# ---------------------------------------------------------------------------
-
 GOVERNORATES = {
     "عدن": {"region": "south", "sarToYerRate": 535, "usdToYerRate": 2040, "markupValue": 0, "deliveryFee": 0},
     "حضرموت": {"region": "south", "sarToYerRate": 535, "usdToYerRate": 2040, "markupValue": 3, "deliveryFee": 0},
@@ -127,67 +125,16 @@ GOVERNORATES = {
     "ريمة": {"region": "north", "sarToYerRate": 140, "markupValue": 3, "deliveryFee": 0},
 }
 
-ALLOWED_ORDER_STATUSES = {
-    "pending",
-    "confirmed",
-    "preparing",
-    "in_shipping",
-    "delivered",
-    "completed",
-    "cancelled",
-}
-
-ALLOWED_PAYMENT_METHODS = {
-    "cash_on_delivery",
-    "kuraimi",
-    "jawali",
-    "one_cash",
-    "bank_transfer",
-}
+ALLOWED_ORDER_STATUSES = {"pending", "confirmed", "preparing", "in_shipping", "delivered", "completed", "cancelled"}
+ALLOWED_PAYMENT_METHODS = {"cash_on_delivery", "kuraimi", "jawali", "one_cash", "bank_transfer"}
 
 PUBLIC_SETTING_DEFAULTS: dict[str, Any] = {
-    "store": {
-        "name": "متجر التخفيض",
-        "description": "متجر إلكتروني",
-        "logo": "",
-        "phone": "",
-        "whatsapp": "",
-        "email": "",
-        "currency": "YER",
-        "defaultGovernorate": "أمانة العاصمة",
-        "enabled": True,
-    },
-    "checkout": {
-        "guestCheckout": True,
-        "requireAddress": True,
-        "requireDeliveryNotes": False,
-        "minimumOrder": 0,
-        "maximumItemsPerOrder": 100,
-    },
-    "shipping": {
-        "enabled": True,
-        "defaultFee": 0,
-        "freeAbove": 0,
-        "sameGovernorateOnly": False,
-    },
-    "payments": {
-        "cash_on_delivery": True,
-        "kuraimi": False,
-        "jawali": False,
-        "one_cash": False,
-        "bank_transfer": False,
-    },
-    "catalog": {
-        "showOutOfStock": False,
-        "allowBackorder": False,
-        "featuredLimit": 12,
-    },
-    "content": {
-        "banners": [],
-        "campaigns": [],
-        "categories": [],
-        "announcements": [],
-    },
+    "store": {"name": "متجر التخفيض", "description": "متجر إلكتروني", "logo": "", "phone": "", "whatsapp": "", "email": "", "currency": "YER", "defaultGovernorate": "أمانة العاصمة", "enabled": True},
+    "checkout": {"guestCheckout": True, "requireAddress": True, "requireDeliveryNotes": False, "minimumOrder": 0, "maximumItemsPerOrder": 100},
+    "shipping": {"enabled": True, "defaultFee": 0, "freeAbove": 0, "sameGovernorateOnly": False},
+    "payments": {"cash_on_delivery": True, "kuraimi": False, "jawali": False, "one_cash": False, "bank_transfer": False},
+    "catalog": {"showOutOfStock": False, "allowBackorder": False, "featuredLimit": 12},
+    "content": {"banners": [], "campaigns": [], "categories": [], "announcements": []},
 }
 
 
@@ -257,10 +204,6 @@ def admin_numbers() -> set[str]:
     return {normalize_phone(x) for x in setting("admin_phones", "").split(",") if normalize_phone(x)}
 
 
-def is_admin_customer(customer: TakhfidCustomer | None) -> bool:
-    return bool(customer and customer.is_admin)
-
-
 def token_hash(raw: str) -> str:
     secret = str(current_app.config.get("SECRET_KEY", "")).encode()
     return hmac.new(secret, raw.encode(), hashlib.sha256).hexdigest()
@@ -274,7 +217,7 @@ def current_customer() -> TakhfidCustomer | None:
     if not raw:
         return None
     row = TakhfidAccessToken.query.filter_by(token_hash=token_hash(raw), revoked_at=None).first()
-    if not row or row.expires_at <= utcnow():
+    if not row or (as_utc(row.expires_at) or utcnow()) <= utcnow():
         return None
     return db.session.get(TakhfidCustomer, row.customer_id)
 
@@ -296,20 +239,7 @@ def require_admin():
 
 
 def public_customer(customer: TakhfidCustomer) -> dict[str, Any]:
-    return {
-        "uid": customer.uid,
-        "phone": customer.phone,
-        "firstName": customer.first_name,
-        "secondName": customer.second_name,
-        "thirdName": customer.third_name,
-        "lastName": customer.last_name,
-        "governorate": customer.governorate,
-        "role": customer.role,
-        "isAdmin": customer.is_admin,
-        "createdAt": customer.created_at.isoformat() if customer.created_at else None,
-        "updatedAt": customer.updated_at.isoformat() if customer.updated_at else None,
-        "lastLoginAt": customer.last_login_at.isoformat() if customer.last_login_at else None,
-    }
+    return {"uid": customer.uid, "phone": customer.phone, "firstName": customer.first_name, "secondName": customer.second_name, "thirdName": customer.third_name, "lastName": customer.last_name, "governorate": customer.governorate, "role": customer.role, "isAdmin": customer.is_admin, "createdAt": customer.created_at.isoformat() if customer.created_at else None, "updatedAt": customer.updated_at.isoformat() if customer.updated_at else None, "lastLoginAt": customer.last_login_at.isoformat() if customer.last_login_at else None}
 
 
 def product_data(row: TakhfidProduct) -> dict[str, Any]:
@@ -396,38 +326,7 @@ def normalize_product_payload(payload: dict[str, Any], product_id: str) -> dict[
     colors = payload.get("colors") if isinstance(payload.get("colors"), list) else []
     attributes = payload.get("attributes") if isinstance(payload.get("attributes"), dict) else {}
     tags = payload.get("tags") if isinstance(payload.get("tags"), list) else []
-    return {
-        "name": name,
-        "slug": str(payload.get("slug") or name.lower().replace(" ", "-")).strip(),
-        "sku": str(payload.get("sku") or "").strip(),
-        "description": str(payload.get("description") or "").strip(),
-        "shortDescription": str(payload.get("shortDescription") or "").strip(),
-        "categoryId": str(payload.get("categoryId") or "").strip(),
-        "category": str(payload.get("category") or "").strip(),
-        "brand": str(payload.get("brand") or "").strip(),
-        "images": images,
-        "image": images[0] if images else "",
-        "price": parse_float(payload.get("price")),
-        "compareAtPrice": parse_float(payload.get("compareAtPrice") or payload.get("originalPrice")),
-        "costPrice": parse_float(payload.get("costPrice")),
-        "discountType": str(payload.get("discountType") or "none"),
-        "discountValue": parse_float(payload.get("discountValue")),
-        "currency": currency,
-        "stock": max(0, parse_int(payload.get("stock"))),
-        "lowStockThreshold": max(0, parse_int(payload.get("lowStockThreshold"), 5)),
-        "active": bool(payload.get("active", True)),
-        "featured": bool(payload.get("featured", False)),
-        "allowBackorder": bool(payload.get("allowBackorder", False)),
-        "sizes": sizes,
-        "colors": colors,
-        "variants": variants,
-        "attributes": attributes,
-        "tags": [str(x).strip() for x in tags if str(x).strip()],
-        "seoTitle": str(payload.get("seoTitle") or "").strip(),
-        "seoDescription": str(payload.get("seoDescription") or "").strip(),
-        "sortOrder": parse_int(payload.get("sortOrder")),
-        "id": product_id,
-    }
+    return {"name": name, "slug": str(payload.get("slug") or name.lower().replace(" ", "-")).strip(), "sku": str(payload.get("sku") or "").strip(), "description": str(payload.get("description") or "").strip(), "shortDescription": str(payload.get("shortDescription") or "").strip(), "categoryId": str(payload.get("categoryId") or "").strip(), "category": str(payload.get("category") or "").strip(), "brand": str(payload.get("brand") or "").strip(), "images": images, "image": images[0] if images else "", "price": parse_float(payload.get("price")), "compareAtPrice": parse_float(payload.get("compareAtPrice") or payload.get("originalPrice")), "costPrice": parse_float(payload.get("costPrice")), "discountType": str(payload.get("discountType") or "none"), "discountValue": parse_float(payload.get("discountValue")), "currency": currency, "stock": max(0, parse_int(payload.get("stock"))), "lowStockThreshold": max(0, parse_int(payload.get("lowStockThreshold"), 5)), "active": bool(payload.get("active", True)), "featured": bool(payload.get("featured", False)), "allowBackorder": bool(payload.get("allowBackorder", False)), "sizes": sizes, "colors": colors, "variants": variants, "attributes": attributes, "tags": [str(x).strip() for x in tags if str(x).strip()], "seoTitle": str(payload.get("seoTitle") or "").strip(), "seoDescription": str(payload.get("seoDescription") or "").strip(), "sortOrder": parse_int(payload.get("sortOrder")), "id": product_id}
 
 
 def select_unit_price(product: dict[str, Any], item: dict[str, Any]) -> float:
@@ -469,10 +368,6 @@ def generate_order_id() -> str:
     return f"#SH-{secrets.token_hex(2).upper()}{str(int(utcnow().timestamp()))[-4:]}"
 
 
-# ---------------------------------------------------------------------------
-# Public catalog/store API
-# ---------------------------------------------------------------------------
-
 @takhfid_api_bp.get("/api/v4/health")
 def health():
     return jsonify({"success": True, "service": "takhfid", "version": "4", "status": "ready"})
@@ -481,17 +376,7 @@ def health():
 @takhfid_api_bp.get("/api/v4/store")
 def get_store():
     content = json_setting("content", PUBLIC_SETTING_DEFAULTS["content"])
-    return jsonify({
-        "success": True,
-        "store": json_setting("store", PUBLIC_SETTING_DEFAULTS["store"]),
-        "checkout": json_setting("checkout", PUBLIC_SETTING_DEFAULTS["checkout"]),
-        "shipping": json_setting("shipping", PUBLIC_SETTING_DEFAULTS["shipping"]),
-        "payments": json_setting("payments", PUBLIC_SETTING_DEFAULTS["payments"]),
-        "catalog": json_setting("catalog", PUBLIC_SETTING_DEFAULTS["catalog"]),
-        "content": content,
-        "pricing": build_pricing(),
-        "governorates": sorted(GOVERNORATES.keys()),
-    })
+    return jsonify({"success": True, "store": json_setting("store", PUBLIC_SETTING_DEFAULTS["store"]), "checkout": json_setting("checkout", PUBLIC_SETTING_DEFAULTS["checkout"]), "shipping": json_setting("shipping", PUBLIC_SETTING_DEFAULTS["shipping"]), "payments": json_setting("payments", PUBLIC_SETTING_DEFAULTS["payments"]), "catalog": json_setting("catalog", PUBLIC_SETTING_DEFAULTS["catalog"]), "content": content, "pricing": build_pricing(), "governorates": sorted(GOVERNORATES.keys())})
 
 
 @takhfid_api_bp.get("/api/v4/content")
@@ -519,7 +404,6 @@ def list_products():
     featured = request.args.get("featured")
     active_only = request.args.get("active", "true").lower() != "false"
     if active_only:
-        # JSON payload fields are normalized, so this remains portable across SQLite/PostgreSQL.
         rows = query.order_by(TakhfidProduct.updated_at.desc()).all()
         rows = [x for x in rows if bool((x.payload or {}).get("active", True))]
     else:
@@ -546,10 +430,6 @@ def get_product(product_id: str):
     return jsonify({"success": True, "product": product_data(row)})
 
 
-# ---------------------------------------------------------------------------
-# Authentication
-# ---------------------------------------------------------------------------
-
 @takhfid_api_bp.post("/api/v4/auth/send-otp")
 def send_otp():
     payload = request.get_json(silent=True) or request.form
@@ -558,7 +438,7 @@ def send_otp():
         return jsonify({"success": False, "error": "رقم الهاتف غير صالح"}), 400
     now = utcnow()
     old = TakhfidOtp.query.filter_by(phone=phone).first()
-    if old and (now - old.sent_at).total_seconds() < 60:
+    if old and (now - (as_utc(old.sent_at) or now)).total_seconds() < 60:
         return jsonify({"success": False, "error": "انتظر قبل إعادة الإرسال", "retryAfterSeconds": 60}), 429
     code = f"{secrets.randbelow(1_000_000):06d}"
     try:
@@ -591,7 +471,7 @@ def verify_otp():
     if not row:
         return jsonify({"success": False, "error": "لا يوجد رمز نشط"}), 400
     now = utcnow()
-    if row.expires_at <= now:
+    if (as_utc(row.expires_at) or now) <= now:
         db.session.delete(row)
         db.session.commit()
         return jsonify({"success": False, "error": "انتهت صلاحية الرمز"}), 400
@@ -660,10 +540,6 @@ def auth_logout():
             db.session.commit()
     return jsonify({"success": True})
 
-
-# ---------------------------------------------------------------------------
-# Admin catalog/content/settings API
-# ---------------------------------------------------------------------------
 
 @takhfid_api_bp.post("/api/v4/admin/products")
 def admin_create_product():
@@ -804,10 +680,6 @@ def admin_pricing(governorate: str):
     return jsonify({"success": True, "governorate": governorate, "pricing": current})
 
 
-# ---------------------------------------------------------------------------
-# Orders: guest checkout + authenticated customer + admin lifecycle
-# ---------------------------------------------------------------------------
-
 def build_order(payload: dict[str, Any], customer: TakhfidCustomer | None) -> tuple[dict[str, Any], str]:
     items = payload.get("items")
     if not isinstance(items, list) or not items or len(items) > 100:
@@ -845,19 +717,7 @@ def build_order(payload: dict[str, Any], customer: TakhfidCustomer | None) -> tu
         unit_price = convert_amount(unit_source_price, source_currency, currency, rate)
         line_total = round(unit_price * quantity, 2)
         subtotal += line_total
-        order_items.append({
-            "productId": product_id,
-            "productName": str(data.get("name") or "منتج"),
-            "sku": str(data.get("sku") or ""),
-            "quantity": quantity,
-            "unitPrice": round(unit_price, 2),
-            "lineTotal": line_total,
-            "currency": currency,
-            "image": str(data.get("image") or ""),
-            "size": raw_item.get("size"),
-            "color": raw_item.get("color"),
-            "variantId": raw_item.get("variantId"),
-        })
+        order_items.append({"productId": product_id, "productName": str(data.get("name") or "منتج"), "sku": str(data.get("sku") or ""), "quantity": quantity, "unitPrice": round(unit_price, 2), "lineTotal": line_total, "currency": currency, "image": str(data.get("image") or ""), "size": raw_item.get("size"), "color": raw_item.get("color"), "variantId": raw_item.get("variantId")})
     discount = max(0.0, parse_float(payload.get("discount")))
     if discount > subtotal:
         discount = subtotal
@@ -875,32 +735,7 @@ def build_order(payload: dict[str, Any], customer: TakhfidCustomer | None) -> tu
     private_token = secrets.token_urlsafe(24)
     customer_id = customer.uid if customer else f"guest_{secrets.token_hex(8)}"
     now = utcnow().isoformat()
-    order = {
-        "id": order_id,
-        "orderId": order_id,
-        "customerName": customer_name,
-        "customerPhone": phone,
-        "governorate": governorate,
-        "address": str(payload.get("address") or "").strip(),
-        "deliveryNotes": str(payload.get("deliveryNotes") or "").strip(),
-        "currency": currency,
-        "paymentMethod": payment_method,
-        "subtotal": round(subtotal, 2),
-        "discount": round(discount, 2),
-        "shippingFee": round(shipping, 2),
-        "totalAmount": total,
-        "total": total,
-        "items": order_items,
-        "status": "pending",
-        "isPaid": False,
-        "paymentReference": str(payload.get("paymentReference") or "").strip(),
-        "createdAt": now,
-        "updatedAt": now,
-        "pricingRegion": rate.get("region"),
-        "exchangeRateSarToYer": rate.get("sarToYerRate"),
-        "exchangeRateUsdToYer": rate.get("usdToYerRate"),
-        "privateAccessToken": private_token,
-    }
+    order = {"id": order_id, "orderId": order_id, "customerName": customer_name, "customerPhone": phone, "governorate": governorate, "address": str(payload.get("address") or "").strip(), "deliveryNotes": str(payload.get("deliveryNotes") or "").strip(), "currency": currency, "paymentMethod": payment_method, "subtotal": round(subtotal, 2), "discount": round(discount, 2), "shippingFee": round(shipping, 2), "totalAmount": total, "total": total, "items": order_items, "status": "pending", "isPaid": False, "paymentReference": str(payload.get("paymentReference") or "").strip(), "createdAt": now, "updatedAt": now, "pricingRegion": rate.get("region"), "exchangeRateSarToYer": rate.get("sarToYerRate"), "exchangeRateUsdToYer": rate.get("usdToYerRate"), "privateAccessToken": private_token}
     return order, customer_id
 
 
@@ -918,7 +753,6 @@ def create_order():
         return jsonify({"success": False, "error": "رقم الطلب مستخدم بالفعل"}), 409
     row = TakhfidOrder(id=order["id"], customer_id=customer_id, payload=order, status="pending")
     db.session.add(row)
-    # Decrement stock atomically at the database transaction level for each line.
     for line in order["items"]:
         product = db.session.get(TakhfidProduct, line["productId"])
         if not product:
@@ -1029,10 +863,6 @@ def update_order_payment(order_id: str):
     return jsonify({"success": True, "order": public_order(row)})
 
 
-# ---------------------------------------------------------------------------
-# Media upload + admin file serving
-# ---------------------------------------------------------------------------
-
 MEDIA_KINDS = {"products", "banners", "campaigns", "categories", "general"}
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 MAX_IMAGE_SIZE = 8 * 1024 * 1024
@@ -1075,10 +905,6 @@ def upload_media():
 def media_file(filename: str):
     return send_from_directory(media_root(), filename, max_age=60 * 60 * 24 * 30)
 
-
-# ---------------------------------------------------------------------------
-# Seed defaults
-# ---------------------------------------------------------------------------
 
 def seed_takhfid_defaults(app) -> None:
     with app.app_context():
