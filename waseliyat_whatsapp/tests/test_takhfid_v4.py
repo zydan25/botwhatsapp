@@ -88,7 +88,7 @@ def test_admin_web_product_create_and_pwa(client):
 
     page = client.get("/takhfid/admin/products")
     assert page.status_code == 200
-    csrf = next(cookie.value for cookie in client.get_cookie("tk_admin_csrf"), []) if False else client.get_cookie("tk_admin_csrf")
+    csrf = client.get_cookie("tk_admin_csrf")
     csrf_value = csrf.value if csrf else ""
     assert csrf_value
 
