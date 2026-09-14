@@ -72,7 +72,7 @@ def create_app():
                 response.headers['Access-Control-Allow-Origin'] = origin
                 response.headers['Vary'] = 'Origin'
                 response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
-                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Authorization'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Authorization, X-Order-Access-Token'
                 response.headers['Access-Control-Max-Age'] = '600'
         return response
 
@@ -80,24 +80,12 @@ def create_app():
     from .auth import auth_bp
     from .main import main_bp
     from .api import api_bp
-    from .takhfid import takhfid_bp
-    from .takhfid_v2 import takhfid_v2_bp
-    from .takhfid_auth_v3 import takhfid_auth_v3_bp
-    from .takhfid_profile_v2 import takhfid_profile_v2_bp
-    from .takhfid_orders_v2 import takhfid_orders_v2_bp
-    from .takhfid_chat_v2 import takhfid_chat_v2_bp
-    from .takhfid_admin_v2 import takhfid_admin_v2_bp
+    from .takhfid_api import takhfid_api_bp, seed_takhfid_defaults
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api/internal')
-    app.register_blueprint(takhfid_bp)
-    app.register_blueprint(takhfid_v2_bp)
-    app.register_blueprint(takhfid_auth_v3_bp)
-    app.register_blueprint(takhfid_profile_v2_bp)
-    app.register_blueprint(takhfid_orders_v2_bp)
-    app.register_blueprint(takhfid_chat_v2_bp)
-    app.register_blueprint(takhfid_admin_v2_bp)
+    app.register_blueprint(takhfid_api_bp)
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -106,6 +94,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         _seed_data(app)
+        seed_takhfid_defaults(app)
 
     _start_status_worker(app)
     return app
