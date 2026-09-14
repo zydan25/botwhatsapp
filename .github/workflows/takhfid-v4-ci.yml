@@ -21,6 +21,7 @@ jobs:
       TAKHFIID_ADMIN_PHONES: 967700000000
       TAKHFIID_OTP_HASH_SECRET: ci-only-otp-secret
       STATUS_POLL_SECONDS: "999"
+      PYTHONPATH: ${{ github.workspace }}/waseliyat_whatsapp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
