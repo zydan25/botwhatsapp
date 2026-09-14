@@ -72,7 +72,7 @@ def test_customer_token_me_and_legacy_token_survives(app, client):
 
     response = client.get("/takhfid/api/v4/auth/me", headers={"Authorization": f"Bearer {raw}"})
     assert response.status_code == 200
-    assert response.get_json()["customer"]["uid"] == "usr_ci_customer"
+    assert response.get_json()["user"]["uid"] == "usr_ci_customer"
 
 
 def test_admin_web_requires_login(client):
