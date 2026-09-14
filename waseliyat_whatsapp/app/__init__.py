@@ -82,6 +82,7 @@ def create_app():
     from .api import api_bp
     from .takhfid import takhfid_bp
     from .takhfid_v2 import takhfid_v2_bp
+    from .takhfid_auth_v3 import takhfid_auth_v3_bp
     from .takhfid_profile_v2 import takhfid_profile_v2_bp
     from .takhfid_orders_v2 import takhfid_orders_v2_bp
     from .takhfid_chat_v2 import takhfid_chat_v2_bp
@@ -92,6 +93,7 @@ def create_app():
     app.register_blueprint(api_bp, url_prefix='/api/internal')
     app.register_blueprint(takhfid_bp)
     app.register_blueprint(takhfid_v2_bp)
+    app.register_blueprint(takhfid_auth_v3_bp)
     app.register_blueprint(takhfid_profile_v2_bp)
     app.register_blueprint(takhfid_orders_v2_bp)
     app.register_blueprint(takhfid_chat_v2_bp)
