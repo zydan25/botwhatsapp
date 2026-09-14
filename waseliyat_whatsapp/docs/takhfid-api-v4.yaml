@@ -1,0 +1,211 @@
+openapi: 3.0.3
+info:
+  title: Takhfid Store API
+  version: 4.0.0
+  description: Unified storefront, catalog, checkout, authentication, content, pricing and admin API.
+servers:
+  - url: https://YOUR-DOMAIN/takhfid
+paths:
+  /api/v4/health:
+    get:
+      summary: Health check
+      responses:
+        '200': {description: OK}
+  /api/v4/store:
+    get:
+      summary: Public store configuration and content
+      responses:
+        '200': {description: Store configuration}
+  /api/v4/content:
+    get:
+      summary: Public banners, campaigns, categories and announcements
+      responses:
+        '200': {description: Content}
+  /api/v4/categories:
+    get:
+      summary: Public categories
+      responses:
+        '200': {description: Categories}
+  /api/v4/pricing:
+    get:
+      summary: Public governorate pricing
+      responses:
+        '200': {description: Pricing}
+  /api/v4/products:
+    get:
+      summary: List products
+      parameters:
+        - {name: q, in: query, schema: {type: string}}
+        - {name: categoryId, in: query, schema: {type: string}}
+        - {name: featured, in: query, schema: {type: boolean}}
+        - {name: active, in: query, schema: {type: boolean, default: true}}
+        - {name: limit, in: query, schema: {type: integer, default: 50, maximum: 100}}
+        - {name: offset, in: query, schema: {type: integer, default: 0}}
+      responses:
+        '200': {description: Products}
+  /api/v4/products/{productId}:
+    get:
+      summary: Get product
+      parameters:
+        - {name: productId, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Product}
+        '404': {description: Not found}
+  /api/v4/auth/send-otp:
+    post:
+      summary: Send WhatsApp OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber]
+              properties:
+                phoneNumber: {type: string}
+      responses:
+        '200': {description: OTP sent}
+  /api/v4/auth/verify-otp:
+    post:
+      summary: Verify OTP and issue Bearer token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, otp]
+              properties:
+                phoneNumber: {type: string}
+                otp: {type: string, minLength: 6, maxLength: 6}
+      responses:
+        '200': {description: Authenticated}
+  /api/v4/auth/me:
+    get:
+      security: [{bearerAuth: []}]
+      summary: Current customer
+      responses:
+        '200': {description: Customer}
+  /api/v4/auth/complete-profile:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Complete customer profile
+      responses:
+        '200': {description: Updated profile}
+  /api/v4/auth/logout:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Revoke current token
+      responses:
+        '200': {description: Logged out}
+  /api/v4/orders:
+    post:
+      summary: Create order; guest checkout is supported
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customerName, customerPhone, items]
+              properties:
+                orderId: {type: string}
+                customerName: {type: string}
+                customerPhone: {type: string}
+                governorate: {type: string}
+                address: {type: string}
+                deliveryNotes: {type: string}
+                currency: {type: string, enum: [YER, SAR]}
+                paymentMethod: {type: string}
+                discount: {type: number}
+                items: {type: array, items: {type: object}}
+      responses:
+        '201': {description: Created}
+    get:
+      security: [{bearerAuth: []}]
+      summary: List own orders or all orders for admin
+      responses:
+        '200': {description: Orders}
+  /api/v4/orders/{orderId}:
+    get:
+      summary: Get order with Bearer or X-Order-Access-Token/query accessToken
+      parameters:
+        - {name: orderId, in: path, required: true, schema: {type: string}}
+        - {name: accessToken, in: query, schema: {type: string}}
+        - {name: X-Order-Access-Token, in: header, schema: {type: string}}
+      responses:
+        '200': {description: Order}
+  /api/v4/orders/{orderId}/status:
+    patch:
+      security: [{bearerAuth: []}]
+      summary: Update order status; admin only
+      responses:
+        '200': {description: Updated order}
+  /api/v4/orders/{orderId}/payment:
+    patch:
+      security: [{bearerAuth: []}]
+      summary: Update payment state; admin only
+      responses:
+        '200': {description: Updated order}
+  /api/v4/admin/products:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Create or upsert product; admin only
+      responses:
+        '201': {description: Created}
+  /api/v4/admin/products/{productId}:
+    put:
+      security: [{bearerAuth: []}]
+      summary: Update product; admin only
+      responses:
+        '200': {description: Updated}
+    delete:
+      security: [{bearerAuth: []}]
+      summary: Delete product; admin only
+      responses:
+        '200': {description: Deleted}
+  /api/v4/admin/products/bulk:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Bulk upsert products; admin only
+      responses:
+        '200': {description: Updated count}
+  /api/v4/admin/store/settings:
+    put:
+      security: [{bearerAuth: []}]
+      summary: Update store, checkout, shipping, payments, catalog and content settings
+      responses:
+        '200': {description: Store settings}
+  /api/v4/admin/content:
+    put:
+      security: [{bearerAuth: []}]
+      summary: Update banners, campaigns, categories and announcements
+      responses:
+        '200': {description: Content}
+  /api/v4/admin/pricing/{governorate}:
+    put:
+      security: [{bearerAuth: []}]
+      summary: Update governorate rates and delivery fee
+      responses:
+        '200': {description: Pricing}
+  /api/v4/admin/media/upload:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Upload product/content image; admin only
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                kind: {type: string, enum: [products, banners, campaigns, categories, general]}
+                file: {type: string, format: binary}
+      responses:
+        '201': {description: Uploaded}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
