@@ -48,6 +48,7 @@ def create_app():
         WEBHOOK_SECRET=os.getenv('WEBHOOK_SECRET', ''),
         TAKHFIID_WHATSAPP_SESSION=os.getenv('TAKHFIID_WHATSAPP_SESSION', 'basheer'),
         TAKHFIID_ALLOWED_ORIGIN=os.getenv('TAKHFIID_ALLOWED_ORIGIN', 'https://zydan25.github.io'),
+        MAX_CONTENT_LENGTH=10 * 1024 * 1024,
     )
     socket_origins = os.getenv('SOCKETIO_ALLOWED_ORIGINS', '*')
 
@@ -81,11 +82,13 @@ def create_app():
     from .main import main_bp
     from .api import api_bp
     from .takhfid_api import takhfid_api_bp, seed_takhfid_defaults
+    from .takhfid_admin_v4 import takhfid_admin_v4_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api/internal')
     app.register_blueprint(takhfid_api_bp)
+    app.register_blueprint(takhfid_admin_v4_bp)
 
     @login_manager.user_loader
     def load_user(user_id):
