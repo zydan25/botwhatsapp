@@ -81,11 +81,13 @@ def create_app():
     from .main import main_bp
     from .api import api_bp
     from .takhfid_api import takhfid_api_bp, seed_takhfid_defaults
+    from .takhfid_admin_center import bp as takhfid_admin_center_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api/internal')
     app.register_blueprint(takhfid_api_bp)
+    app.register_blueprint(takhfid_admin_center_bp)
 
     @login_manager.user_loader
     def load_user(user_id):
