@@ -1,0 +1,12 @@
+{% extends 'takhfid_center/base.html' %}
+{% block title %}الرئيسية | مركز التحكم{% endblock %}
+{% block page_name %}نظرة عامة{% endblock %}
+{% block content %}
+<section class="tk-page">
+<div class="tk-title"><div><h1>مركز تحكم المتجر</h1><p>كل الإدارة في واجهة واحدة سهلة للهاتف والكمبيوتر.</p></div><a class="tk-btn primary" href="{{ url_for('takhfid_admin_center.products') }}">+ منتج جديد</a></div>
+<div class="tk-grid">
+<div class="tk-stat"><small>كل المنتجات</small><b>{{ stats.products }}</b></div><div class="tk-stat"><small>النشطة</small><b>{{ stats.active_products }}</b></div><div class="tk-stat"><small>نفد المخزون</small><b>{{ stats.out_of_stock }}</b></div><div class="tk-stat"><small>الأصناف</small><b>{{ stats.categories }}</b></div><div class="tk-stat"><small>العملاء</small><b>{{ stats.customers }}</b></div><div class="tk-stat"><small>الطلبات</small><b>{{ stats.orders }}</b></div><div class="tk-stat"><small>طلبات جديدة</small><b>{{ stats.pending }}</b></div><div class="tk-stat"><small>جلسات واتساب</small><b>{{ stats.sessions }}</b></div>
+</div>
+<section class="tk-card" style="margin-top:14px"><h2>آخر الطلبات</h2>{% if recent_orders %}<div class="tk-table-wrap"><table class="tk-table"><thead><tr><th>الطلب</th><th>العميل</th><th>المبلغ</th><th>الحالة</th></tr></thead><tbody>{% for row in recent_orders %}{% set p=row.payload or {} %}<tr><td>{{ row.id }}</td><td>{{ p.customerName or '—' }}</td><td>{{ p.totalAmount or p.total or 0 }} {{ p.currency or 'YER' }}</td><td><span class="tk-badge">{{ row.status }}</span></td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="tk-empty">لا توجد طلبات حتى الآن.</div>{% endif %}</section>
+</section>
+{% endblock %}

@@ -5,9 +5,10 @@ import secrets
 import threading
 import time
 from datetime import datetime, timezone
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, request, redirect, url_for
 from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
@@ -26,6 +27,16 @@ def utcnow():
 def _database_uri(app):
     uri = os.getenv('DATABASE_URL', '').strip()
     if not uri:
+        db_name = os.getenv('DB_NAME', 'takhfid').strip() or 'takhfid'
+        db_user = os.getenv('DB_USER', 'takhfid').strip() or 'takhfid'
+        db_host = os.getenv('DB_HOST', 'localhost').strip() or 'localhost'
+        db_port = os.getenv('DB_PORT', '5432').strip() or '5432'
+        db_password = os.getenv('DB_PASSWORD', '')
+        if db_password:
+            return (
+                f'postgresql+psycopg://{quote_plus(db_user)}:{quote_plus(db_password)}'
+                f'@{db_host}:{db_port}/{quote_plus(db_name)}'
+            )
         return 'sqlite:///waseliyat.db'
     if uri.startswith('sqlite:///instance/'):
         filename = uri[len('sqlite:///instance/'):]
@@ -42,6 +53,8 @@ def create_app():
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         APP_NAME=os.getenv('APP_NAME', 'ربطيات واتساب'),
         APP_PORT=int(os.getenv('APP_PORT', '3333')),
+        APP_BASE_URL=os.getenv('APP_BASE_URL', 'https://whats.alattab.site').rstrip('/'),
+        TAKHFID_ADMIN_URL=os.getenv('TAKHFID_ADMIN_URL', 'https://whats.alattab.site/store-admin/').rstrip('/') + '/',
         CONTRACT_VERSION=os.getenv('CONTRACT_VERSION', '1.0'),
         STATUS_POLL_SECONDS=max(2, int(os.getenv('STATUS_POLL_SECONDS', '4'))),
         WHATSAPP_API_BASE_URL=os.getenv('WHATSAPP_API_BASE_URL', 'https://whatsapp.alattab.site').rstrip('/'),
@@ -55,6 +68,13 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'يرجى تسجيل الدخول أولاً.'
+
+    @login_manager.unauthorized_handler
+    def handle_unauthorized():
+        if request.path.startswith('/store-admin'):
+            return redirect(url_for('takhfid_admin_entry.login', next=request.full_path.rstrip('?')))
+        return redirect(url_for('auth.login', next=request.full_path.rstrip('?')))
+
     socketio.init_app(app, cors_allowed_origins=socket_origins)
 
     @app.before_request
@@ -81,11 +101,15 @@ def create_app():
     from .main import main_bp
     from .api import api_bp
     from .takhfid_api import takhfid_api_bp, seed_takhfid_defaults
+    from .takhfid_admin_entry import bp as takhfid_admin_entry_bp
+    from .takhfid_admin_center import bp as takhfid_admin_center_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api/internal')
     app.register_blueprint(takhfid_api_bp)
+    app.register_blueprint(takhfid_admin_entry_bp)
+    app.register_blueprint(takhfid_admin_center_bp)
 
     @login_manager.user_loader
     def load_user(user_id):

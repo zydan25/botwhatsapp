@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}مركز تحكم المتجر{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/takhfid_center.css') }}">
+</head>
+<body>
+<div class="tk-app">
+  <aside class="tk-sidebar" id="sidebar">
+    <div class="tk-brand"><div class="tk-logo">ت</div><div><b>مركز التحكم</b><small>متجر التخفيض</small></div></div>
+    <nav>
+      <a href="{{ url_for('takhfid_admin_center.dashboard') }}">الرئيسية</a>
+      <a href="{{ url_for('takhfid_admin_center.products') }}">المنتجات</a>
+      <a href="{{ url_for('takhfid_admin_center.categories') }}">الأصناف</a>
+      <a href="{{ url_for('takhfid_admin_center.content_page', type='banners') }}">المحتوى</a>
+      <a href="{{ url_for('takhfid_admin_center.orders') }}">الطلبات</a>
+      <a href="{{ url_for('takhfid_admin_center.customers') }}">العملاء</a>
+      <a href="{{ url_for('takhfid_admin_center.settings') }}">إعدادات المتجر</a>
+      <a href="{{ url_for('takhfid_admin_center.whatsapp') }}">واتساب</a>
+      <a href="{{ url_for('takhfid_admin_center.diagnostics') }}">تشخيص البيانات</a>
+      <a href="{{ url_for('takhfid_admin_center.audit_page') }}">سجل العمليات</a>
+    </nav>
+    <a class="tk-back" href="{{ url_for('main.dashboard') }}">لوحة واتساب القديمة</a>
+  </aside>
+  <main class="tk-main">
+    <header class="tk-topbar"><button class="tk-menu" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button><div><strong>{% block page_name %}مركز التحكم{% endblock %}</strong><span>إدارة المتجر والبيانات من مكان واحد</span></div><a class="tk-view" href="{{ url_for('takhfid_admin_entry.status') }}">حالة الخدمة</a></header>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="tk-flashes">{% for category,message in messages %}<div class="tk-flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

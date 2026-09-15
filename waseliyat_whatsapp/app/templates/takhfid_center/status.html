@@ -1,0 +1,16 @@
+{% extends 'takhfid_center/base.html' %}
+{% block title %}حالة مركز التحكم{% endblock %}
+{% block page_name %}حالة الخدمة والقاعدة{% endblock %}
+{% block content %}
+<section class="tk-page-head"><div><h1>حالة النظام</h1><p>فحص الاتصال بقاعدة PostgreSQL وجلسات واتساب من داخل اللوحة، بدون عرض JSON خام.</p></div></section>
+<section class="tk-grid tk-grid-3">
+  <article class="tk-card"><span>قاعدة البيانات</span><strong class="{{ 'ok' if db_ok else 'danger' }}">{{ 'متصلة' if db_ok else 'غير متصلة' }}</strong><small>{% if db_ok %}تم تنفيذ فحص الاتصال بنجاح{% else %}تعذر الاتصال{% endif %}</small></article>
+  <article class="tk-card"><span>نوع القاعدة</span><strong>PostgreSQL</strong><small>قاعدة متجر التخفيض</small></article>
+  <article class="tk-card"><span>جلسات واتساب</span><strong>{{ sessions|length }}</strong><small>الجلسات المعرفة في النظام</small></article>
+</section>
+{% if not db_ok %}<div class="tk-alert danger">{{ db_error }}</div>{% endif %}
+<section class="tk-card">
+  <div class="tk-card-head"><h2>الجلسات</h2></div>
+  <div class="tk-table-wrap"><table><thead><tr><th>الاسم</th><th>العرض</th><th>الحالة</th><th>آخر تحديث</th></tr></thead><tbody>{% for item in sessions %}<tr><td>{{ item.name }}</td><td>{{ item.display_name }}</td><td><span class="tk-badge">{{ item.status or 'غير معروف' }}</span></td><td>{{ item.updated_at or '—' }}</td></tr>{% else %}<tr><td colspan="4">لا توجد جلسات.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}
