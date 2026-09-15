@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>دخول مركز تحكم التخفيض</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/takhfid_center.css') }}">
+</head>
+<body class="tk-login-body">
+  <main class="tk-login-card">
+    <div class="tk-logo tk-logo-large">ت</div>
+    <h1>مركز تحكم التخفيض</h1>
+    <p>الدخول المستقل لإدارة المتجر والمنتجات والطلبات والعملاء.</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for category,message in messages %}<div class="tk-flash {{ category }}">{{ message }}</div>{% endfor %}{% endif %}{% endwith %}
+    <form method="post" class="tk-form">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <label>اسم المستخدم<input name="username" value="{{ username or '' }}" autocomplete="username" required></label>
+      <label>كلمة المرور<input type="password" name="password" autocomplete="current-password" required></label>
+      <button class="tk-primary" type="submit">دخول مركز التحكم</button>
+    </form>
+    <a class="tk-muted-link" href="{{ current_app.config.get('APP_BASE_URL', 'https://whats.alattab.site') }}/">العودة إلى لوحة ربطيات واتساب</a>
+  </main>
+</body>
+</html>
