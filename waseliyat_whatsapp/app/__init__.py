@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, request, redirect, url_for
 from flask_login import LoginManager
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
@@ -68,6 +68,13 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'يرجى تسجيل الدخول أولاً.'
+
+    @login_manager.unauthorized_handler
+    def handle_unauthorized():
+        if request.path.startswith('/store-admin'):
+            return redirect(url_for('takhfid_admin_entry.login', next=request.full_path.rstrip('?')))
+        return redirect(url_for('auth.login', next=request.full_path.rstrip('?')))
+
     socketio.init_app(app, cors_allowed_origins=socket_origins)
 
     @app.before_request
@@ -94,12 +101,14 @@ def create_app():
     from .main import main_bp
     from .api import api_bp
     from .takhfid_api import takhfid_api_bp, seed_takhfid_defaults
+    from .takhfid_admin_entry import bp as takhfid_admin_entry_bp
     from .takhfid_admin_center import bp as takhfid_admin_center_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(api_bp, url_prefix='/api/internal')
     app.register_blueprint(takhfid_api_bp)
+    app.register_blueprint(takhfid_admin_entry_bp)
     app.register_blueprint(takhfid_admin_center_bp)
 
     @login_manager.user_loader
