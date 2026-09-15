@@ -24,7 +24,7 @@
     <a class="tk-back" href="{{ url_for('main.dashboard') }}">لوحة واتساب القديمة</a>
   </aside>
   <main class="tk-main">
-    <header class="tk-topbar"><button class="tk-menu" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button><div><strong>{% block page_name %}مركز التحكم{% endblock %}</strong><span>إدارة المتجر والبيانات من مكان واحد</span></div><a class="tk-view" href="/takhfid/api/v4/health" target="_blank">حالة الخدمة</a></header>
+    <header class="tk-topbar"><button class="tk-menu" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button><div><strong>{% block page_name %}مركز التحكم{% endblock %}</strong><span>إدارة المتجر والبيانات من مكان واحد</span></div><a class="tk-view" href="{{ url_for('takhfid_admin_entry.status') }}">حالة الخدمة</a></header>
     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="tk-flashes">{% for category,message in messages %}<div class="tk-flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     {% block content %}{% endblock %}
   </main>
