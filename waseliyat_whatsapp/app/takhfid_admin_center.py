@@ -211,6 +211,7 @@ def order_update(order_id):
     payload = dict(row.payload or {})
     status = request.form.get("status", "")
     previous_status = row.status
+    previous_paid = bool((row.payload or {}).get("isPaid"))
     if status:
         row.status = status
         payload["status"] = status
@@ -228,7 +229,7 @@ def order_update(order_id):
                 chat_session_id=chat_session_id(row.customer_id, order_id),
                 data={"orderId": order_id, "status": status},
             )
-        elif payload["isPaid"] and not bool((row.payload or {}).get("_paymentNotified")):
+        if payload["isPaid"] and not previous_paid:
             customer_notification(
                 row.customer_id,
                 "تم تحديث الدفع",
@@ -238,7 +239,6 @@ def order_update(order_id):
                 chat_session_id=chat_session_id(row.customer_id, order_id),
                 data={"orderId": order_id, "isPaid": True},
             )
-            payload["_paymentNotified"] = True
     audit("takhfid.admin.order.update", order_id)
     db.session.commit()
     flash("تم تحديث الطلب", "success")
