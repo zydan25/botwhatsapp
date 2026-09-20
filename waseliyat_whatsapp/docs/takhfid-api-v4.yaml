@@ -147,6 +147,93 @@ paths:
       summary: Update payment state; admin only
       responses:
         '200': {description: Updated order}
+
+  /api/v4/chat/sessions:
+    get:
+      security: [{bearerAuth: []}]
+      summary: List authenticated customer chat sessions
+      responses:
+        '200': {description: Sessions}
+    post:
+      security: [{bearerAuth: []}]
+      summary: Create or return general/order chat session
+      responses:
+        '201': {description: Session}
+        '403': {description: Forbidden}
+  /api/v4/chat/sessions/{sessionId}/messages:
+    get:
+      security: [{bearerAuth: []}]
+      summary: List messages for the authenticated customer's session
+      responses:
+        '200': {description: Messages}
+    post:
+      security: [{bearerAuth: []}]
+      summary: Send customer message
+      responses:
+        '201': {description: Message sent}
+  /api/v4/chat/sessions/{sessionId}/read:
+    patch:
+      security: [{bearerAuth: []}]
+      summary: Mark customer chat session read
+      responses:
+        '200': {description: Marked read}
+  /api/v4/chat/sessions/{sessionId}/media/upload:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Upload customer chat image or payment proof
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+      responses:
+        '201': {description: Uploaded}
+  /api/v4/chat/media/{sessionId}/{filename}:
+    get:
+      security: [{bearerAuth: []}]
+      summary: Read authorized customer chat media
+      responses:
+        '200': {description: Media}
+  /api/v4/notifications:
+    get:
+      security: [{bearerAuth: []}]
+      summary: List authenticated customer notifications
+      responses:
+        '200': {description: Notifications}
+  /api/v4/notifications/{notificationId}/read:
+    patch:
+      security: [{bearerAuth: []}]
+      summary: Mark a customer notification read
+      responses:
+        '200': {description: Updated}
+  /api/v4/notifications/read-all:
+    post:
+      security: [{bearerAuth: []}]
+      summary: Mark all customer notifications read
+      responses:
+        '200': {description: Updated}
+  /api/v4/admin/chat/sessions:
+    get:
+      security: [{bearerAuth: []}]
+      summary: List customer chat sessions for admin
+      responses:
+        '200': {description: Sessions}
+  /api/v4/admin/chat/sessions/{sessionId}/messages:
+    get:
+      security: [{bearerAuth: []}]
+      summary: Read a customer chat for admin
+      responses:
+        '200': {description: Messages}
+    post:
+      security: [{bearerAuth: []}]
+      summary: Send an admin message to a customer
+      responses:
+        '201': {description: Message sent}
+
   /api/v4/admin/products:
     post:
       security: [{bearerAuth: []}]
