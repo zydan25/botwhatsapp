@@ -329,3 +329,32 @@ def test_customer_cannot_access_another_customer_chat(app, client):
         phone="967775555555",
         first="صاحب",
     )
+    intruder_token = _token(
+        app,
+        uid="usr_intruder",
+        phone="967776666666",
+        first="متطفل",
+    )
+
+    owner_headers = {"Authorization": f"Bearer {owner_token}"}
+    intruder_headers = {"Authorization": f"Bearer {intruder_token}"}
+
+    create = client.post(
+        "/takhfid/api/v4/chat/sessions",
+        headers=owner_headers,
+        json={},
+    )
+    assert create.status_code == 201
+    chat_id = create.get_json()["session"]["id"]
+
+    owner_read = client.get(
+        f"/takhfid/api/v4/chat/sessions/{chat_id}/messages",
+        headers=owner_headers,
+    )
+    assert owner_read.status_code == 200
+
+    denied = client.get(
+        f"/takhfid/api/v4/chat/sessions/{chat_id}/messages",
+        headers=intruder_headers,
+    )
+    assert denied.status_code == 403
