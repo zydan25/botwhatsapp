@@ -2,10 +2,9 @@ module.exports = {
   apps: [
     {
       name: 'waseliyat',
-      cwd: '/home/root/projects/waseliyat',
-      script: '/home/root/projects/waseliyat/.venv/bin/python',
-      args: 'waseliyat_whatsapp/run.py',
-      interpreter: 'none',
+      cwd: '/home/root/projects/waseliyat/waseliyat_whatsapp',
+      script: '/home/root/projects/waseliyat/waseliyat_whatsapp/run.py',
+      interpreter: '/home/root/projects/waseliyat/.venv/bin/python',
       autorestart: true,
       watch: false,
       max_memory_restart: '512M',
