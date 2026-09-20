@@ -244,6 +244,14 @@ PUBLIC_SETTING_DEFAULTS: dict[str, Any] = {
 }
 
 
+
+def as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
 def normalize_phone(value: Any) -> str:
     digits = "".join(ch for ch in str(value or "") if ch.isdigit())
     if digits.startswith("00"):
@@ -327,7 +335,7 @@ def current_customer() -> TakhfidCustomer | None:
     if not raw:
         return None
     row = TakhfidAccessToken.query.filter_by(token_hash=token_hash(raw), revoked_at=None).first()
-    if not row or row.expires_at <= utcnow():
+    if not row or (as_utc(row.expires_at) or datetime.min.replace(tzinfo=timezone.utc)) <= utcnow():
         return None
     return db.session.get(TakhfidCustomer, row.customer_id)
 
@@ -771,7 +779,7 @@ def send_otp():
         return jsonify({"success": False, "error": "رقم الهاتف غير صالح"}), 400
     now = utcnow()
     old = TakhfidOtp.query.filter_by(phone=phone).first()
-    if old and (now - old.sent_at).total_seconds() < 60:
+    if old and (now - (as_utc(old.sent_at) or now)).total_seconds() < 60:
         return jsonify({"success": False, "error": "انتظر قبل إعادة الإرسال", "retryAfterSeconds": 60}), 429
     code = f"{secrets.randbelow(1_000_000):06d}"
     try:
@@ -804,7 +812,7 @@ def verify_otp():
     if not row:
         return jsonify({"success": False, "error": "لا يوجد رمز نشط"}), 400
     now = utcnow()
-    if row.expires_at <= now:
+    if (as_utc(row.expires_at) or datetime.min.replace(tzinfo=timezone.utc)) <= now:
         db.session.delete(row)
         db.session.commit()
         return jsonify({"success": False, "error": "انتهت صلاحية الرمز"}), 400
