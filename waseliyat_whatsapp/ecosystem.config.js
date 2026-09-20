@@ -4,7 +4,7 @@ module.exports = {
       name: 'waseliyat',
       cwd: '/home/root/projects/waseliyat',
       script: '/home/root/projects/waseliyat/.venv/bin/python',
-      args: 'run.py',
+      args: 'waseliyat_whatsapp/run.py',
       interpreter: 'none',
       autorestart: true,
       watch: false,
