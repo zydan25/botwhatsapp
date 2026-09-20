@@ -6,8 +6,11 @@ on:
     branches:
       - feat/takhfid-customer-server-2026-09
   pull_request:
+    branches:
+      - feat/takhfid-customer-server-2026-09
     paths:
       - "waseliyat_whatsapp/**"
+      - ".github/workflows/takhfid-customer-server-ci.yml"
 
 jobs:
   test:
@@ -31,7 +34,9 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Compile server
-        run: python -m compileall -q app
+        run: python -m compileall -q app tests
 
-      - name: Run contract tests
-        run: pytest -q
+      - name: Run customer server contract tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/waseliyat_whatsapp
+        run: pytest -q tests/test_takhfid_customer_server.py
