@@ -12,7 +12,8 @@ from . import db
 from .models import AuditLog, WhatsAppSession, Notification
 from .takhfid_api import (
     GOVERNORATES, PUBLIC_SETTING_DEFAULTS, TakhfidCustomer, TakhfidOrder,
-    TakhfidProduct, json_setting, product_data, save_json_setting,
+    TakhfidProduct, chat_session_id, customer_notification,
+    json_setting, product_data, save_json_setting,
 )
 
 bp = Blueprint("takhfid_admin_center", __name__, url_prefix="/store-admin")
@@ -209,10 +210,38 @@ def order_update(order_id):
     if not row: abort(404)
     payload = dict(row.payload or {})
     status = request.form.get("status", "")
-    if status: row.status = status; payload["status"] = status
+    previous_status = row.status
+    if status:
+        row.status = status
+        payload["status"] = status
     payload["isPaid"] = request.form.get("isPaid") == "1"
     payload["paymentReference"] = request.form.get("paymentReference", "").strip()
-    row.payload = payload; audit("takhfid.admin.order.update", order_id); db.session.commit(); flash("تم تحديث الطلب", "success")
+    row.payload = payload
+    if not str(row.customer_id).startswith("guest_"):
+        if status and status != previous_status:
+            customer_notification(
+                row.customer_id,
+                "تحديث حالة طلبك",
+                "تم تحديث حالة الطلب " + order_id + " إلى " + status + ".",
+                type="order_status",
+                order_id=order_id,
+                chat_session_id=chat_session_id(row.customer_id, order_id),
+                data={"orderId": order_id, "status": status},
+            )
+        elif payload["isPaid"] and not bool((row.payload or {}).get("_paymentNotified")):
+            customer_notification(
+                row.customer_id,
+                "تم تحديث الدفع",
+                "تم تحديث حالة الدفع للطلب " + order_id + ".",
+                type="payment",
+                order_id=order_id,
+                chat_session_id=chat_session_id(row.customer_id, order_id),
+                data={"orderId": order_id, "isPaid": True},
+            )
+            payload["_paymentNotified"] = True
+    audit("takhfid.admin.order.update", order_id)
+    db.session.commit()
+    flash("تم تحديث الطلب", "success")
     return redirect(url_for("takhfid_admin_center.orders"))
 
 
