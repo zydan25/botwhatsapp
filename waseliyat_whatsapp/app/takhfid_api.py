@@ -569,7 +569,14 @@ def customer_notification(
 
 def chat_session_id(customer_id: str, order_id: str | None = None) -> str:
     if order_id:
-        return "chat_" + customer_id + "_order_" + order_id
+        safe_order_id = (
+            str(order_id)
+            .replace("#", "")
+            .replace("/", "_")
+            .replace("\\", "_")
+            .replace(" ", "_")
+        )
+        return "chat_" + customer_id + "_order_" + safe_order_id
     return "chat_" + customer_id
 
 
