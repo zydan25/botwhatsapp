@@ -98,6 +98,59 @@ class TakhfidOrder(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
 
 
+class TakhfidChatSession(db.Model):
+    __tablename__ = "takhfid_chat_session"
+    id = db.Column(db.String(180), primary_key=True)
+    customer_id = db.Column(db.String(80), nullable=False, index=True)
+    order_id = db.Column(db.String(120), nullable=True, index=True)
+    title = db.Column(db.String(200), nullable=False, default="دعم العملاء")
+    status = db.Column(db.String(30), nullable=False, default="open")
+    unread_by_customer = db.Column(db.Integer, nullable=False, default=0)
+    unread_by_admin = db.Column(db.Integer, nullable=False, default=0)
+    last_message = db.Column(db.Text, nullable=False, default="")
+    last_message_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    __table_args__ = (
+        UniqueConstraint("customer_id", "order_id", name="uq_takhfid_chat_customer_order"),
+    )
+
+
+class TakhfidChatMessage(db.Model):
+    __tablename__ = "takhfid_chat_message"
+    id = db.Column(db.String(180), primary_key=True)
+    session_id = db.Column(
+        db.String(180),
+        db.ForeignKey("takhfid_chat_session.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    customer_id = db.Column(db.String(80), nullable=False, index=True)
+    sender = db.Column(db.String(20), nullable=False, default="customer")
+    text = db.Column(db.Text, nullable=False, default="")
+    media_url = db.Column(db.Text, nullable=True)
+    media_type = db.Column(db.String(80), nullable=True)
+    file_name = db.Column(db.String(255), nullable=True)
+    is_payment_proof = db.Column(db.Boolean, nullable=False, default=False)
+    order_id = db.Column(db.String(120), nullable=True, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
+    read_by_customer = db.Column(db.Boolean, nullable=False, default=False)
+
+
+class TakhfidCustomerNotification(db.Model):
+    __tablename__ = "takhfid_customer_notification"
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.String(80), nullable=False, index=True)
+    order_id = db.Column(db.String(120), nullable=True, index=True)
+    chat_session_id = db.Column(db.String(180), nullable=True)
+    type = db.Column(db.String(40), nullable=False, default="system")
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, nullable=False, default="")
+    data = db.Column(db.JSON, nullable=False, default=dict)
+    read = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow, index=True)
+
+
 # ---------------------------------------------------------------------------
 # Defaults / utilities
 # ---------------------------------------------------------------------------
@@ -470,6 +523,159 @@ def generate_order_id() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Customer chat, media and notification API
+# ---------------------------------------------------------------------------
+
+CHAT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+CHAT_MAX_IMAGE_SIZE = 8 * 1024 * 1024
+
+
+def customer_name(customer: TakhfidCustomer) -> str:
+    value = " ".join(
+        str(x).strip()
+        for x in (
+            customer.first_name,
+            customer.second_name,
+            customer.third_name,
+            customer.last_name,
+        )
+        if x and str(x).strip()
+    )
+    return value or "عميل المتجر"
+
+
+def customer_notification(
+    customer_id: str,
+    title: str,
+    body: str,
+    *,
+    type: str = "system",
+    order_id: str | None = None,
+    chat_session_id: str | None = None,
+    data: dict[str, Any] | None = None,
+) -> TakhfidCustomerNotification:
+    item = TakhfidCustomerNotification(
+        customer_id=customer_id,
+        order_id=order_id,
+        chat_session_id=chat_session_id,
+        type=type,
+        title=title,
+        body=body,
+        data=data or {},
+    )
+    db.session.add(item)
+    return item
+
+
+def chat_session_id(customer_id: str, order_id: str | None = None) -> str:
+    if order_id:
+        return "chat_" + customer_id + "_order_" + order_id
+    return "chat_" + customer_id
+
+
+def ensure_chat_session(
+    *,
+    customer_id: str,
+    order_id: str | None = None,
+    title: str = "دعم العملاء",
+    status: str = "open",
+) -> TakhfidChatSession:
+    session_id = chat_session_id(customer_id, order_id)
+    row = db.session.get(TakhfidChatSession, session_id)
+    if row:
+        return row
+    row = TakhfidChatSession(
+        id=session_id,
+        customer_id=customer_id,
+        order_id=order_id,
+        title=title,
+        status=status,
+    )
+    db.session.add(row)
+    db.session.flush()
+    return row
+
+
+def public_chat_session(row: TakhfidChatSession) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customerId": row.customer_id,
+        "orderId": row.order_id,
+        "title": row.title,
+        "status": row.status,
+        "unreadByCustomer": row.unread_by_customer,
+        "unreadByAdmin": row.unread_by_admin,
+        "lastMessage": row.last_message,
+        "lastMessageAt": row.last_message_at.isoformat() if row.last_message_at else None,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+        "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
+    }
+
+
+def public_chat_message(row: TakhfidChatMessage) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "sessionId": row.session_id,
+        "customerId": row.customer_id,
+        "sender": row.sender,
+        "text": row.text,
+        "mediaUrl": row.media_url,
+        "mediaType": row.media_type,
+        "fileName": row.file_name,
+        "isPaymentProof": row.is_payment_proof,
+        "orderId": row.order_id,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def public_notification(row: TakhfidCustomerNotification) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "customerId": row.customer_id,
+        "orderId": row.order_id,
+        "chatSessionId": row.chat_session_id,
+        "type": row.type,
+        "title": row.title,
+        "body": row.body,
+        "data": row.data or {},
+        "read": row.read,
+        "createdAt": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def _owned_chat_session(session_id: str, customer: TakhfidCustomer) -> TakhfidChatSession | None:
+    row = db.session.get(TakhfidChatSession, session_id)
+    if not row or row.customer_id != customer.uid:
+        return None
+    return row
+
+
+def _admin_or_owner_chat_session(session_id: str, customer: TakhfidCustomer) -> TakhfidChatSession | None:
+    row = db.session.get(TakhfidChatSession, session_id)
+    if not row:
+        return None
+    if customer.is_admin or row.customer_id == customer.uid:
+        return row
+    return None
+
+
+def _parse_since(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def chat_media_root(session_id: str) -> Path:
+    safe_id = secure_filename(session_id)
+    root = Path(current_app.instance_path) / "takhfid_uploads" / "chat" / safe_id
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+# ---------------------------------------------------------------------------
 # Public catalog/store API
 # ---------------------------------------------------------------------------
 
@@ -659,6 +865,373 @@ def auth_logout():
             token.revoked_at = utcnow()
             db.session.commit()
     return jsonify({"success": True})
+
+
+# ---------------------------------------------------------------------------
+# Customer chat/media
+# ---------------------------------------------------------------------------
+
+@takhfid_api_bp.get("/api/v4/chat/sessions")
+def chat_sessions():
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    rows = (
+        TakhfidChatSession.query
+        .filter_by(customer_id=customer.uid)
+        .order_by(TakhfidChatSession.updated_at.desc())
+        .limit(50)
+        .all()
+    )
+    return jsonify({
+        "success": True,
+        "sessions": [public_chat_session(x) for x in rows],
+    })
+
+
+@takhfid_api_bp.post("/api/v4/chat/sessions")
+def chat_session_create():
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+
+    payload = request.get_json(silent=True) or {}
+    order_id = str(payload.get("orderId") or "").strip() or None
+    if order_id:
+        order = db.session.get(TakhfidOrder, order_id)
+        if not order or order.customer_id != customer.uid:
+            return jsonify({"success": False, "error": "الطلب غير موجود أو غير مصرح"}), 403
+
+    title = "محادثة الطلب " + order_id if order_id else "دعم العملاء"
+    row = ensure_chat_session(
+        customer_id=customer.uid,
+        order_id=order_id,
+        title=title,
+    )
+    db.session.commit()
+    return jsonify({"success": True, "session": public_chat_session(row)}), 201
+
+
+@takhfid_api_bp.get("/api/v4/chat/sessions/<session_id>/messages")
+def chat_messages(session_id: str):
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    row = _owned_chat_session(session_id, customer)
+    if not row:
+        return jsonify({"success": False, "error": "المحادثة غير موجودة أو غير مصرح"}), 403
+
+    query = TakhfidChatMessage.query.filter_by(session_id=row.id)
+    since = _parse_since(request.args.get("since"))
+    if since:
+        query = query.filter(TakhfidChatMessage.created_at > since)
+
+    limit = max(1, min(200, parse_int(request.args.get("limit"), 100)))
+    offset = max(0, parse_int(request.args.get("offset"), 0))
+    messages = (
+        query.order_by(TakhfidChatMessage.created_at.asc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return jsonify({
+        "success": True,
+        "session": public_chat_session(row),
+        "messages": [public_chat_message(x) for x in messages],
+    })
+
+
+@takhfid_api_bp.post("/api/v4/chat/sessions/<session_id>/messages")
+def chat_send_message(session_id: str):
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    row = _owned_chat_session(session_id, customer)
+    if not row:
+        return jsonify({"success": False, "error": "المحادثة غير موجودة أو غير مصرح"}), 403
+    if row.status != "open":
+        return jsonify({"success": False, "error": "المحادثة مغلقة"}), 409
+
+    payload = request.get_json(silent=True) or {}
+    text = str(payload.get("text") or "").strip()
+    media_url = str(payload.get("mediaUrl") or "").strip() or None
+    media_type = str(payload.get("mediaType") or "").strip() or None
+    file_name = str(payload.get("fileName") or "").strip() or None
+    is_payment_proof = bool(payload.get("isPaymentProof", False))
+
+    if not text and not media_url:
+        return jsonify({"success": False, "error": "الرسالة فارغة"}), 400
+
+    if media_url and not media_url.startswith("/takhfid/api/v4/chat/media/"):
+        return jsonify({"success": False, "error": "رابط المرفق غير صالح"}), 400
+
+    if is_payment_proof and not row.order_id:
+        return jsonify({"success": False, "error": "سند الدفع يجب أن يرتبط بطلب"}), 400
+
+    now = utcnow()
+    message = TakhfidChatMessage(
+        id="msg-c-" + secrets.token_hex(10),
+        session_id=row.id,
+        customer_id=customer.uid,
+        sender="customer",
+        text=text,
+        media_url=media_url,
+        media_type=media_type,
+        file_name=file_name,
+        is_payment_proof=is_payment_proof,
+        order_id=row.order_id,
+        created_at=now,
+    )
+    db.session.add(message)
+    row.last_message = text or "مرفق 📎"
+    row.last_message_at = now
+    row.updated_at = now
+    row.unread_by_admin += 1
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": public_chat_message(message),
+        "session": public_chat_session(row),
+    }), 201
+
+
+@takhfid_api_bp.patch("/api/v4/chat/sessions/<session_id>/read")
+def chat_mark_read(session_id: str):
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    row = _owned_chat_session(session_id, customer)
+    if not row:
+        return jsonify({"success": False, "error": "المحادثة غير موجودة أو غير مصرح"}), 403
+    row.unread_by_customer = 0
+    db.session.query(TakhfidChatMessage).filter_by(
+        session_id=row.id,
+        sender="admin",
+    ).update({"read_by_customer": True}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({"success": True, "session": public_chat_session(row)})
+
+
+@takhfid_api_bp.post("/api/v4/chat/sessions/<session_id>/media/upload")
+def chat_upload_media(session_id: str):
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    row = _owned_chat_session(session_id, customer)
+    if not row:
+        return jsonify({"success": False, "error": "المحادثة غير موجودة أو غير مصرح"}), 403
+
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        return jsonify({"success": False, "error": "الصورة مطلوبة"}), 400
+
+    filename = secure_filename(upload.filename)
+    ext = Path(filename).suffix.lower()
+    if ext not in CHAT_IMAGE_EXTENSIONS:
+        return jsonify({"success": False, "error": "صيغة الصورة غير مدعومة"}), 400
+
+    upload.seek(0, os.SEEK_END)
+    size = upload.tell()
+    upload.seek(0)
+    if size > CHAT_MAX_IMAGE_SIZE:
+        return jsonify({"success": False, "error": "حجم الصورة يتجاوز 8MB"}), 400
+
+    final_name = secrets.token_urlsafe(16).replace("-", "_") + ext
+    upload.save(chat_media_root(row.id) / final_name)
+    relative = (
+        "/takhfid/api/v4/chat/media/"
+        + secure_filename(row.id)
+        + "/"
+        + final_name
+    )
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "relativeUrl": relative,
+        "url": current_app.config["APP_BASE_URL"].rstrip("/") + relative,
+        "mediaType": upload.mimetype or "image/*",
+        "fileName": filename,
+    }), 201
+
+
+@takhfid_api_bp.get("/api/v4/chat/media/<session_id>/<filename>")
+def chat_media(session_id: str, filename: str):
+    customer = current_customer()
+    if not customer:
+        return jsonify({"success": False, "error": "تسجيل الدخول مطلوب"}), 401
+    row = _admin_or_owner_chat_session(session_id, customer)
+    if not row:
+        return jsonify({"success": False, "error": "غير مصرح"}), 403
+    safe_name = secure_filename(filename)
+    if safe_name != filename:
+        return jsonify({"success": False, "error": "اسم ملف غير صالح"}), 400
+    return send_from_directory(
+        chat_media_root(row.id),
+        safe_name,
+        max_age=60 * 60 * 24 * 7,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Customer notifications
+# ---------------------------------------------------------------------------
+
+@takhfid_api_bp.get("/api/v4/notifications")
+def customer_notifications():
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    limit = max(1, min(100, parse_int(request.args.get("limit"), 50)))
+    offset = max(0, parse_int(request.args.get("offset"), 0))
+    rows = (
+        TakhfidCustomerNotification.query
+        .filter_by(customer_id=customer.uid)
+        .order_by(TakhfidCustomerNotification.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    unread = (
+        TakhfidCustomerNotification.query
+        .filter_by(customer_id=customer.uid, read=False)
+        .count()
+    )
+    return jsonify({
+        "success": True,
+        "notifications": [public_notification(x) for x in rows],
+        "unreadCount": unread,
+    })
+
+
+@takhfid_api_bp.patch("/api/v4/notifications/<int:notification_id>/read")
+def customer_notification_read(notification_id: int):
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    row = db.session.get(TakhfidCustomerNotification, notification_id)
+    if not row or row.customer_id != customer.uid:
+        return jsonify({"success": False, "error": "الإشعار غير موجود"}), 404
+    row.read = True
+    db.session.commit()
+    return jsonify({"success": True, "notification": public_notification(row)})
+
+
+@takhfid_api_bp.post("/api/v4/notifications/read-all")
+def customer_notifications_read_all():
+    customer = require_customer()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    TakhfidCustomerNotification.query.filter_by(
+        customer_id=customer.uid,
+        read=False,
+    ).update({"read": True}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+# ---------------------------------------------------------------------------
+# Admin chat API
+# ---------------------------------------------------------------------------
+
+@takhfid_api_bp.get("/api/v4/admin/chat/sessions")
+def admin_chat_sessions():
+    customer = require_admin()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    rows = (
+        TakhfidChatSession.query
+        .order_by(TakhfidChatSession.updated_at.desc())
+        .limit(200)
+        .all()
+    )
+    return jsonify({
+        "success": True,
+        "sessions": [public_chat_session(x) for x in rows],
+    })
+
+
+@takhfid_api_bp.get("/api/v4/admin/chat/sessions/<session_id>/messages")
+def admin_chat_messages(session_id: str):
+    customer = require_admin()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    row = db.session.get(TakhfidChatSession, session_id)
+    if not row:
+        return jsonify({"success": False, "error": "المحادثة غير موجودة"}), 404
+    limit = max(1, min(200, parse_int(request.args.get("limit"), 100)))
+    messages = (
+        TakhfidChatMessage.query
+        .filter_by(session_id=row.id)
+        .order_by(TakhfidChatMessage.created_at.asc())
+        .limit(limit)
+        .all()
+    )
+    row.unread_by_admin = 0
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "session": public_chat_session(row),
+        "messages": [public_chat_message(x) for x in messages],
+    })
+
+
+@takhfid_api_bp.post("/api/v4/admin/chat/sessions/<session_id>/messages")
+def admin_chat_send_message(session_id: str):
+    customer = require_admin()
+    if not isinstance(customer, TakhfidCustomer):
+        return customer
+    row = db.session.get(TakhfidChatSession, session_id)
+    if not row:
+        return jsonify({"success": False, "error": "المحادثة غير موجودة"}), 404
+    if row.status != "open":
+        return jsonify({"success": False, "error": "المحادثة مغلقة"}), 409
+
+    payload = request.get_json(silent=True) or {}
+    text = str(payload.get("text") or "").strip()
+    media_url = str(payload.get("mediaUrl") or "").strip() or None
+    media_type = str(payload.get("mediaType") or "").strip() or None
+    file_name = str(payload.get("fileName") or "").strip() or None
+    if not text and not media_url:
+        return jsonify({"success": False, "error": "الرسالة فارغة"}), 400
+
+    now = utcnow()
+    message = TakhfidChatMessage(
+        id="msg-a-" + secrets.token_hex(10),
+        session_id=row.id,
+        customer_id=row.customer_id,
+        sender="admin",
+        text=text,
+        media_url=media_url,
+        media_type=media_type,
+        file_name=file_name,
+        order_id=row.order_id,
+        created_at=now,
+    )
+    db.session.add(message)
+    row.last_message = text or "مرفق 📎"
+    row.last_message_at = now
+    row.updated_at = now
+    row.unread_by_customer += 1
+
+    customer_row = TakhfidCustomer.query.filter_by(uid=row.customer_id).first()
+    if customer_row:
+        customer_notification(
+            customer_row.uid,
+            "رسالة جديدة",
+            text or "أرسل الدعم مرفقًا جديدًا",
+            type="chat",
+            order_id=row.order_id,
+            chat_session_id=row.id,
+            data={"sessionId": row.id, "orderId": row.order_id},
+        )
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": public_chat_message(message),
+        "session": public_chat_session(row),
+    }), 201
 
 
 # ---------------------------------------------------------------------------
@@ -930,9 +1503,32 @@ def create_order():
             product.payload = data
             product.updated_at = utcnow()
     audit("takhfid.order.created", order["id"])
+    chat_id = None
+    if not str(customer_id).startswith("guest_"):
+        chat_row = ensure_chat_session(
+            customer_id=customer_id,
+            order_id=row.id,
+            title="محادثة الطلب " + row.id,
+        )
+        chat_id = chat_row.id
+        customer_notification(
+            customer_id,
+            "تم استلام طلبك",
+            "تم إنشاء الطلب " + row.id + " بنجاح.",
+            type="order",
+            order_id=row.id,
+            chat_session_id=chat_row.id,
+            data={"orderId": row.id, "sessionId": chat_row.id},
+        )
     db.session.commit()
     safe_order = public_order(row)
-    return jsonify({"success": True, "order": safe_order, "orderId": row.id, "accessToken": order["privateAccessToken"]}), 201
+    return jsonify({
+        "success": True,
+        "order": safe_order,
+        "orderId": row.id,
+        "accessToken": order["privateAccessToken"],
+        "chatSessionId": chat_id,
+    }), 201
 
 
 @takhfid_api_bp.get("/api/v4/orders")
@@ -1000,6 +1596,16 @@ def update_order_status(order_id: str):
     row.status = status
     row.updated_at = utcnow()
     audit("takhfid.order.status", f"{order_id}:{status}")
+    if not str(row.customer_id).startswith("guest_"):
+        customer_notification(
+            row.customer_id,
+            "تحديث حالة طلبك",
+            "تم تحديث حالة الطلب " + order_id + " إلى " + status + ".",
+            type="order_status",
+            order_id=order_id,
+            chat_session_id=chat_session_id(row.customer_id, order_id),
+            data={"orderId": order_id, "status": status},
+        )
     db.session.commit()
     return jsonify({"success": True, "order": public_order(row)})
 
@@ -1025,6 +1631,16 @@ def update_order_payment(order_id: str):
     row.payload = data
     row.updated_at = utcnow()
     audit("takhfid.order.payment", order_id)
+    if not str(row.customer_id).startswith("guest_"):
+        customer_notification(
+            row.customer_id,
+            "تحديث الدفع",
+            "تم تحديث حالة الدفع للطلب " + order_id + ".",
+            type="payment",
+            order_id=order_id,
+            chat_session_id=chat_session_id(row.customer_id, order_id),
+            data={"orderId": order_id, "isPaid": is_paid},
+        )
     db.session.commit()
     return jsonify({"success": True, "order": public_order(row)})
 
